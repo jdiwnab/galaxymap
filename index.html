@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+.links {
+  stroke: #000;
+  stroke-opacity: 0.3;
+}
+
+.polygons {
+	fill: #DDD;
+	stroke: #000;
+	stroke-opacity:.01;
+	pointer-events: all;
+}
+.sites {
+	fill: #000;
+	stroke: #fff;
+}
+
+.teamRed {
+	fill: red;
+}
+
+.teamBlue {
+	fill: blue;
+}
+
+.teamGreen {
+	fill: green;
+}
+
+.teamYellow {
+	fill: yellow;
+}
+
+</style>
+
+<svg width="960" height="500"></svg>
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<!-- jQuery -->
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+<!-- Latest compiled and minified CSS -->
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css">
+<!-- Latest compiled and minified JavaScript -->
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/js/bootstrap.min.js"></script>
+<script>
+var svg = d3.select("svg"),
+	viewWidth	= svg.attr("width"),
+	viewHeight	= svg.attr("height"),
+	width		= 1200,
+	height		= 900,
+	scaleX		= viewWidth/width,
+	scaleY		= viewHeight/height;
+
+function gaussian(mean, stdev) {
+    var y2;
+    var use_last = false;
+    return function() {
+        var y1;
+        if(use_last) {
+           y1 = y2;
+           use_last = false;
+        }
+        else {
+            var x1, x2, w;
+            do {
+                 x1 = 2.0 * Math.random() - 1.0;
+                 x2 = 2.0 * Math.random() - 1.0;
+                 w  = x1 * x1 + x2 * x2;               
+            } while( w >= 1.0);
+            w = Math.sqrt((-2.0 * Math.log(w))/w);
+            y1 = x1 * w;
+            y2 = x2 * w;
+            use_last = true;
+       }
+
+       var retval = mean + stdev * y1;
+       if(retval > 0) 
+           return retval;
+       return -retval;
+   }
+}
+//Two distrubutions make it look interesting
+var xNormA = gaussian(width/2 - width/8, width/10);
+var yNormA = gaussian(height/2 - height/8, height/10);
+var xNormB = gaussian(width/2 + width/8, width/10);
+var yNormB = gaussian(height/2 + height/8, height/10);
+function pointGen() {
+	var point;
+	if(Math.random() < .5) {
+		point = [xNormA(), yNormA()]
+	} else {
+		point = [xNormB(), yNormB()]
+	}
+	return point;
+}
+function assignFactions() {
+	var diagram = voronoi(sites);
+	var factions = ['teamRed', 'teamBlue', 'teamGreen', 'teamYellow']
+	factions.forEach(function(faction) {
+		var index;
+		while(!index) {
+			index = Math.floor(Math.random() * diagram.cells.length);
+			var cell = diagram.cells[index];
+			if (cell.faction) {
+				index = undefined;
+			}
+		}
+		assignFaction(diagram, index, faction, 1);
+ 
+	});
+}
+function assignFaction(diagram, index, faction, distribution) {
+	var cell = diagram.cells[index];
+	//randomly assign a faction, for now one of two
+	if(cell.faction) return;
+	cell.faction = faction;
+	polygons._groups[0][index].setAttribute("class", faction);
+	//now, with a random chance, pick an adjacent cell and apply the faction if it doesn't have one
+	for(hEdgeIndex = 0; hEdgeIndex < cell.halfedges.length; hEdgeIndex ++) {
+		var hEdge = cell.halfedges[hEdgeIndex];
+		if(Math.random() < distribution) {
+			var edge = diagram.edges[hEdge];
+			//find neighbor that is not the current cell
+			var neighbor = edge.left;
+			if (neighbor === cell.site || !neighbor){ 
+				neighbor = edge.right;
+			}
+			//if we have a neighbor
+			if(neighbor) {
+				assignFaction(diagram, neighbor.index, faction, distribution * .75)
+			}
+		}
+	}
+}
+
+var sites = d3.range(200).map(pointGen);
+var voronoi = d3.voronoi().extent([[-1,-1], [width+1, height+1]]);
+
+var polygons = svg.append("g")
+	.attr("class", "polygons")
+	.selectAll("path")
+	.data(voronoi.polygons(sites))
+	.enter()
+	.append("path")
+	.call(redrawPolygon);
+var link = svg.append("g")
+	.attr("class", "links")
+	.selectAll("line")
+	.data(voronoi.links(sites))
+	.enter()
+	.append("line")
+	.call(redrawLink);
+var site = svg.append("g")
+	.attr("class", "sites")
+	.selectAll("circle")
+	.data(sites)
+	.enter()
+	.append("circle")
+	.attr("r", 2.5)
+	.call(redrawSite);
+
+assignFactions();
+/*var clip = svg.append("g")
+	.attr("class", "clip-path")
+	.append("svg:clipPath")
+	.attr("id", "clippath")
+	.append("svg:circle")
+	.attr("cx", width/2 * scaleX)
+	.attr("cy", height/2 * scaleY)
+	.attr("r", height/2 * scaleY);*/
+
+//function moved() {
+	//sites[0] = d3.mouse(this);
+	//redraw();
+//}
+
+/*function redraw() {
+	var diagram = voronoi(sites);
+	var selected = diagram.polygons()[diagram.find(d3.mouse(this))];
+	polygons= polygons.data(diagram.polygons()).call(redrawPolygon);
+	link 	= link.data(diagram.links()), link.exit().remove();
+	link 	= link.enter().append("line").merge(link).call(redrawLink);
+	site 	= site.data(sites).call(redrawSite);
+}*/
+
+function redrawPolygon(polygon) {
+	//console.log(polygon);
+	polygon.attr("d", function(d) {
+		return d ? "M" + d.map(function(i) {
+			return [i[0]*scaleX, i[1]*scaleY];
+		}).join("L") + "Z" : null;
+	})
+		//.attr("clip-path", "url(#clippath)")
+		.on("mouseover", function() { this.setAttribute("style", "fill-opacity: .5"); })
+		.on("mouseout", function() { this.setAttribute("style", "fill-opacity: 1"); });
+}
+function redrawLink(link) {
+	link
+		.attr("x1", function(d) { return d.source[0]*scaleX; })
+		.attr("y1", function(d) { return d.source[1]*scaleY; })
+		.attr("x2", function(d) { return d.target[0]*scaleX; })
+		.attr("y2", function(d) { return d.target[1]*scaleY; });
+		//.attr("clip-path", "url(#clippath)");
+
+}
+function redrawSite(site) {
+	site
+		.attr("cx", function(d) { return d[0]*scaleX; })
+		.attr("cy", function(d) { return d[1]*scaleY; });
+		//.attr("clip-path", "url(#clippath)");
+
+}
+
+
+
+</script>

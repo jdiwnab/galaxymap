@@ -2,82 +2,79 @@
 <meta charset="utf-8">
 <style>
 
-svg {
-	background-image: url("m31.jpg");
-	background-size: 100%;
-}
+	svg {
+		background-image: url("m31.jpg");
+		background-size: 100%;
+	}
 
-.links {
-  stroke: #000;
-  stroke-opacity: 0.5;
-}
+	.links {
+	  stroke: #000;
+	  stroke-opacity: 0.5;
+	}
 
-.polygons {
-	fill: #DDD;
-	fill-opacity: 0.2;
-	stroke: #000;
-	stroke-opacity:.01;
-	pointer-events: all;
-}
-.sites {
-	fill: #000;
-	stroke: #fff;
-}
+	.polygons {
+		fill: #DDD;
+		fill-opacity: 0.2;
+		stroke: #FFF;
+		stroke-opacity:.1;
+		pointer-events: all;
+	}
+	.sites {
+		fill: #000;
+		stroke: #fff;
+	}
 
-.teamRed {
-	fill: red;
-}
+	.teamRed {
+		fill: red;
+	}
 
-.teamBlue {
-	fill: blue;
-}
+	.teamBlue {
+		fill: blue;
+	}
 
-.teamGreen {
-	fill: green;
-}
+	.teamGreen {
+		fill: green;
+	}
 
-.teamYellow {
-	fill: yellow;
-}
+	.teamYellow {
+		fill: yellow;
+	}
 
-.teamCyan {
-	fill: darkcyan;
-}
+	.teamCyan {
+		fill: darkcyan;
+	}
 
-.teamPurple {
-	fill: darkmagenta;
-}
+	.teamPurple {
+		fill: darkmagenta;
+	}
 
-.teamOrange {
-	fill: darkorange;
-}
+	.teamOrange {
+		fill: darkorange;
+	}
 
-.teamBrown {
-	fill: saddlebrown;
-}
-
+	.teamBrown {
+		fill: saddlebrown;
+	}
 </style>
 
 <svg width="960" height="500"></svg>
-<div id="logger">
-
-</div>
+<div id="details"></div>
+<div id="logger"></div>
 <script src="https://d3js.org/d3.v4.min.js"></script>
 <script>
 
+var polygons, link, site, voronoi, sites, diagram;
+var xNormA, yNormA, xNormB, yNormB;
+var svg, viewWidth, viewHeight, width, height, scaleX, scaleY;
+
+//log messages to console and to the view
 function log(msg) {
 	var logger = document.getElementById("logger");
 	logger.innerHTML = logger.innerHTML + "<br/>" + msg;
 	console.log(msg);
 }
-var svg = d3.select("svg"),
-	viewWidth	= svg.attr("width"),
-	viewHeight	= svg.attr("height"),
-	width		= 1200,
-	height		= 900,
-	scaleX		= viewWidth/width,
-	scaleY		= viewHeight/height;
 
+//returns a function that generates in a given distribution
 function gaussian(mean, stdev) {
     var y2;
     var use_last = false;
@@ -106,11 +103,8 @@ function gaussian(mean, stdev) {
        return -retval;
    }
 }
-//Two distrubutions make it look interesting
-var xNormA = gaussian(width/2 + width/8, width/10);
-var yNormA = gaussian(height/2 - height/8, height/10);
-var xNormB = gaussian(width/2 - width/8, width/10);
-var yNormB = gaussian(height/2 + height/8, height/10);
+
+//pick out points in a distribution that looks nice
 function pointGen() {
 	var point;
 	if(Math.random() < .5) {
@@ -121,11 +115,10 @@ function pointGen() {
 	return point;
 }
 
-//
+//for each faction, start in a random location and expand from there
 function assignFactions() {
-	var diagram = voronoi(sites);
 	var factions = ['teamRed', 'teamBlue', 'teamGreen', 'teamYellow', 'teamOrange', 'teamCyan', 'teamPurple', 'teamBrown']
-	factions.forEach(function(faction) {
+	factions.forEach(function (faction) {
 		var index;
 		while(!index) {
 			index = Math.floor(Math.random() * diagram.cells.length);
@@ -134,14 +127,14 @@ function assignFactions() {
 				index = undefined;
 			}
 		}
-		assignFaction(diagram, index, faction, .9, .25);
+		assignFaction(index, faction, .9, .25);
 	});
 }
 
 //assign a faction to a cell, given by 'index'
 //expand with a chance of 'expantion' to any given adjacent cells
 //decrease rate of expantion by 'decrement'
-function assignFaction(diagram, index, faction, expantion, decrement) {
+function assignFaction(index, faction, expantion, decrement) {
 	var cell = diagram.cells[index];
 	//randomly assign a faction, for now one of two
 	if(cell.faction) return;
@@ -160,90 +153,163 @@ function assignFaction(diagram, index, faction, expantion, decrement) {
 			}
 			//if we have a neighbor
 			if(neighbor) {
-				assignFaction(diagram, neighbor.index, faction, expantion * decrement, decrement);
+				assignFaction(neighbor.index, faction, expantion * decrement, decrement);
 			}
 		}
 	});
 }
 
-var sites = d3.range(200).map(pointGen);
-var voronoi = d3.voronoi().extent([[-1,-1], [width+1, height+1]]);
+function assignDescriptions() {
+	var aspects = getAspects();
+	diagram.cells.forEach(function (cell) {
+		var site = cell.site;
+		//pick three aspects per site
+		var aspects = [getDescription(), getDescription(), getDescription()];
+		site.aspects = aspects;
+	});
+}
 
-var polygons = svg.append("g")
-	.attr("class", "polygons")
-	.selectAll("path")
-	.data(voronoi.polygons(sites))
-	.enter()
-	.append("path")
-	.call(redrawPolygon);
-var link = svg.append("g")
-	.attr("class", "links")
-	.selectAll("line")
-	.data(voronoi.links(sites))
-	.enter()
-	.append("line")
-	.call(redrawLink);
-var site = svg.append("g")
-	.attr("class", "sites")
-	.selectAll("circle")
-	.data(sites)
-	.enter()
-	.append("circle")
-	.attr("r", 2.5)
-	.call(redrawSite);
+function getDescription() {
+	var aspects = getAspects();
+	return aspects[Math.floor(Math.random() * aspects.length)];
+}
 
-assignFactions();
-/*var clip = svg.append("g")
-	.attr("class", "clip-path")
-	.append("svg:clipPath")
-	.attr("id", "clippath")
-	.append("svg:circle")
-	.attr("cx", width/2 * scaleX)
-	.attr("cy", height/2 * scaleY)
-	.attr("r", height/2 * scaleY);*/
+function init() {
+	//view variables
+	svg 		= d3.select("svg");
+	viewWidth	= svg.attr("width");
+	viewHeight	= svg.attr("height");
+	width		= 1200;
+	height		= 900;
+	scaleX		= viewWidth/width;
+	scaleY		= viewHeight/height;
 
-//function moved() {
-	//sites[0] = d3.mouse(this);
-	//redraw();
-//}
+	//Two distrubutions make it look interesting
+	xNormA = gaussian(width/2 + width/8, width/10);
+	yNormA = gaussian(height/2 - height/8, height/10);
+	xNormB = gaussian(width/2 - width/8, width/10);
+	yNormB = gaussian(height/2 + height/8, height/10);
 
-/*function redraw() {
-	var diagram = voronoi(sites);
-	var selected = diagram.polygons()[diagram.find(d3.mouse(this))];
-	polygons= polygons.data(diagram.polygons()).call(redrawPolygon);
-	link 	= link.data(diagram.links()), link.exit().remove();
-	link 	= link.enter().append("line").merge(link).call(redrawLink);
-	site 	= site.data(sites).call(redrawSite);
-}*/
+	//main diagram references
+	sites = d3.range(200).map(pointGen);
+	voronoi = d3.voronoi().extent([[-1,-1], [width+1, height+1]]);
+	diagram = voronoi(sites);
 
+	//init the view
+	polygons = svg.append("g")
+		.attr("class", "polygons")
+		.selectAll("path")
+		.data(voronoi.polygons(sites))
+		.enter()
+		.append("path")
+		.call(redrawPolygon);
+	link = svg.append("g")
+		.attr("class", "links")
+		.selectAll("line")
+		.data(voronoi.links(sites))
+		.enter()
+		.append("line")
+		.call(redrawLink);
+	site = svg.append("g")
+		.attr("class", "sites")
+		.selectAll("circle")
+		.data(sites)
+		.enter()
+		.append("circle")
+		.attr("r", 2.5)
+		.call(redrawSite);
+
+	assignFactions();
+	assignDescriptions();
+}
+
+//draw a region
 function redrawPolygon(polygon) {
 	//console.log(polygon);
 	polygon.attr("d", function(d) {
 		return d ? "M" + d.map(function(i) {
-			return [i[0]*scaleX, i[1]*scaleY];
-		}).join("L") + "Z" : null;
-	})
-		//.attr("clip-path", "url(#clippath)")
+				return [i[0]*scaleX, i[1]*scaleY];
+			}).join("L") + "Z" : null;
+		})
 		.on("mouseover", function() { this.setAttribute("style", "fill-opacity: .5"); })
-		.on("mouseout", function() { this.setAttribute("style", "fill-opacity: .2"); });
+		.on("mouseout", function() { this.setAttribute("style", "fill-opacity: .2"); })
+		.on("mousedown", showDetails);
 }
+//draw a star lane
 function redrawLink(link) {
 	link
 		.attr("x1", function(d) { return d.source[0]*scaleX; })
 		.attr("y1", function(d) { return d.source[1]*scaleY; })
 		.attr("x2", function(d) { return d.target[0]*scaleX; })
 		.attr("y2", function(d) { return d.target[1]*scaleY; });
-		//.attr("clip-path", "url(#clippath)");
-
 }
+//draw a star/planet
 function redrawSite(site) {
 	site
 		.attr("cx", function(d) { return d[0]*scaleX; })
 		.attr("cy", function(d) { return d[1]*scaleY; });
-		//.attr("clip-path", "url(#clippath)");
-
 }
 
+function showDetails() {
+	var site = diagram.find(d3.mouse(this)[0], d3.mouse(this)[1]);
+	var details = document.getElementById("details");
+	details.innerText = site.aspects.join(", ");
+}
 
+function getAspects() {
+	return [
+		'high gravity',
+		'normal gravity', 
+		'low gravity',
+		'industrialized',
+		'mechanized',
+		'agrarian',
+		'peaceful',
+		'agressive',
+		'xenophobic',
+		'welcoming',
+		'wealthy',
+		'poor',
+		'monarchy',
+		'democracy',
+		'religious',
+		'ecologist',
+		'scientists',
+		'pacifist',
+		'authoritarian',
+		'xenophile',
+		'greedy',
+		'communistic',
+		'outpost',
+		'colony',
+		'homeworld',
+		'spacefaring',
+		'robotic',
+		'bioengeered',
+		'desert',
+		'swamp',
+		'oceans',
+		'icey',
+		'water-covered',
+		'underwater',
+		'jungle',
+		'forest',
+		'confederation',
+		'anarchy',
+		'empire',
+		'hegemony',
+		'theocracy',
+		'tidaly-locked',
+		'asteroid',
+		'moon',
+		'capital',
+		'gas giant',
+		'arborial',
+		'natives',
+		'plantShaper'
+	]
+}
+
+window.onload = function() { init(); };
 
 </script>

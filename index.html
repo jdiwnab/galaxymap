@@ -37,6 +37,9 @@
 </style>
 
 <svg width="960" height="500"></svg>
+<div id="logger">
+
+</div>
 <script src="https://d3js.org/d3.v4.min.js"></script>
 <!-- jQuery -->
 <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
@@ -45,6 +48,12 @@
 <!-- Latest compiled and minified JavaScript -->
 <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/js/bootstrap.min.js"></script>
 <script>
+
+function log(msg) {
+   var logger = document.getElementById("logger");
+   logger.innerHtml = logger.innerHtml + "<br/>" + msg;
+   console.log(msg);
+}
 var svg = d3.select("svg"),
 	viewWidth	= svg.attr("width"),
 	viewHeight	= svg.attr("height"),
@@ -120,6 +129,7 @@ function assignFaction(diagram, index, faction, distribution) {
 	//now, with a random chance, pick an adjacent cell and apply the faction if it doesn't have one
 	for(hEdgeIndex = 0; hEdgeIndex < cell.halfedges.length; hEdgeIndex ++) {
 		var hEdge = cell.halfedges[hEdgeIndex];
+      log("exploring cell " +index+" edge "+hEdgeIndex);
 		if(Math.random() < distribution) {
 			var edge = diagram.edges[hEdge];
 			//find neighbor that is not the current cell

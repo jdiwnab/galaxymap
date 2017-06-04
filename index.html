@@ -2,13 +2,19 @@
 <meta charset="utf-8">
 <style>
 
+svg {
+	background-image: url("m31.png");
+	background-size: 100%;
+}
+
 .links {
   stroke: #000;
-  stroke-opacity: 0.3;
+  stroke-opacity: 0.5;
 }
 
 .polygons {
 	fill: #DDD;
+	fill-opacity: 0.2;
 	stroke: #000;
 	stroke-opacity:.01;
 	pointer-events: all;
@@ -34,6 +40,22 @@
 	fill: yellow;
 }
 
+.teamCyan {
+	fill: darkcyan;
+}
+
+.teamPurple {
+	fill: darkmagenta;
+}
+
+.teamOrange {
+	fill: darkorange;
+}
+
+.teamBrown {
+	fill: saddlebrown;
+}
+
 </style>
 
 <svg width="960" height="500"></svg>
@@ -50,9 +72,9 @@
 <script>
 
 function log(msg) {
-   var logger = document.getElementById("logger");
-   logger.innerHtml = logger.innerHtml + "<br/>" + msg;
-   console.log(msg);
+	var logger = document.getElementById("logger");
+	logger.innerHTML = logger.innerHTML + "<br/>" + msg;
+	console.log(msg);
 }
 var svg = d3.select("svg"),
 	viewWidth	= svg.attr("width"),
@@ -91,9 +113,9 @@ function gaussian(mean, stdev) {
    }
 }
 //Two distrubutions make it look interesting
-var xNormA = gaussian(width/2 - width/8, width/10);
+var xNormA = gaussian(width/2 + width/8, width/10);
 var yNormA = gaussian(height/2 - height/8, height/10);
-var xNormB = gaussian(width/2 + width/8, width/10);
+var xNormB = gaussian(width/2 - width/8, width/10);
 var yNormB = gaussian(height/2 + height/8, height/10);
 function pointGen() {
 	var point;
@@ -104,9 +126,11 @@ function pointGen() {
 	}
 	return point;
 }
+
+//
 function assignFactions() {
 	var diagram = voronoi(sites);
-	var factions = ['teamRed', 'teamBlue', 'teamGreen', 'teamYellow']
+	var factions = ['teamRed', 'teamBlue', 'teamGreen', 'teamYellow', 'teamOrange', 'teamCyan', 'teamPurple', 'teamBrown']
 	factions.forEach(function(faction) {
 		var index;
 		while(!index) {
@@ -116,21 +140,24 @@ function assignFactions() {
 				index = undefined;
 			}
 		}
-		assignFaction(diagram, index, faction, 1.0);
- 
+		assignFaction(diagram, index, faction, .9, .25);
 	});
 }
-function assignFaction(diagram, index, faction, distribution) {
+
+//assign a faction to a cell, given by 'index'
+//expand with a chance of 'expantion' to any given adjacent cells
+//decrease rate of expantion by 'decrement'
+function assignFaction(diagram, index, faction, expantion, decrement) {
 	var cell = diagram.cells[index];
 	//randomly assign a faction, for now one of two
 	if(cell.faction) return;
 	cell.faction = faction;
 	polygons._groups[0][index].setAttribute("class", faction);
 	//now, with a random chance, pick an adjacent cell and apply the faction if it doesn't have one
-	for(hEdgeIndex = 0; hEdgeIndex < cell.halfedges.length; hEdgeIndex ++) {
-		var hEdge = cell.halfedges[hEdgeIndex];
-      log("exploring cell " +index+" edge "+hEdgeIndex);
-		if(Math.random() < distribution) {
+	cell.halfedges.forEach(function(hEdge) {
+		//var hEdge = cell.halfedges[hEdgeIndex];
+		//log("exploring cell " +index+" edge "+hEdgeIndex);
+		if(Math.random() < expantion) {
 			var edge = diagram.edges[hEdge];
 			//find neighbor that is not the current cell
 			var neighbor = edge.left;
@@ -139,10 +166,10 @@ function assignFaction(diagram, index, faction, distribution) {
 			}
 			//if we have a neighbor
 			if(neighbor) {
-				assignFaction(diagram, neighbor.index, faction, distribution * .75)
+				assignFaction(diagram, neighbor.index, faction, expantion * decrement, decrement);
 			}
 		}
-	}
+	});
 }
 
 var sites = d3.range(200).map(pointGen);
@@ -204,7 +231,7 @@ function redrawPolygon(polygon) {
 	})
 		//.attr("clip-path", "url(#clippath)")
 		.on("mouseover", function() { this.setAttribute("style", "fill-opacity: .5"); })
-		.on("mouseout", function() { this.setAttribute("style", "fill-opacity: 1"); });
+		.on("mouseout", function() { this.setAttribute("style", "fill-opacity: .2"); });
 }
 function redrawLink(link) {
 	link

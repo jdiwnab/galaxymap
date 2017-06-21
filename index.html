@@ -345,8 +345,8 @@ function showDetails() {
 	//rescale the input coordinates to the graph coordinates
 	var site = diagram.find(d3.mouse(this)[0]/scaleX, d3.mouse(this)[1]/scaleY);
 	var detail = document.getElementById("details_"+site.id);
-	var offset = detail.offsetTop -5;
 	var legend = document.getElementById("legend");
+	var offset = detail.offsetTop - legend.offsetTop;
 	var detailList = document.getElementsByClassName("details");
 	//reset existing styles
 	for(var i = 0; i<detailList.length; i++) {

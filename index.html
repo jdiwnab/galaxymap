@@ -1,68 +1,99 @@
 <!DOCTYPE html>
-<meta charset="utf-8">
-<style>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<style>
+			html {
+				font-family: sans-serif;
+			}
 
-	svg {
-		background-image: url("m31.jpg");
-		background-size: 100%;
-	}
+			svg {
+				background-image: url("m31.jpg");
+				background-size: 100%;
+				display: inline-block;
+			}
 
-	.links {
-	  stroke: #000;
-	  stroke-opacity: 0.5;
-	}
+			.links {
+			  stroke: #000;
+			  stroke-opacity: 0.5;
+			}
 
-	.polygons {
-		fill: #DDD;
-		fill-opacity: 0.2;
-		stroke: #FFF;
-		stroke-opacity:.1;
-		pointer-events: all;
-	}
-	.sites {
-		fill: #000;
-		stroke: #fff;
-	}
+			.polygons {
+				fill: #DDD;
+				fill-opacity: 0.2;
+				stroke: #FFF;
+				stroke-opacity:.1;
+				pointer-events: all;
+			}
+			.sites {
+				fill: #000;
+				stroke: #fff;
+			}
 
-	.teamRed {
-		fill: red;
-	}
+			.teamRed {
+				fill: red;
+				fill-opacity: 0.2;
+			}
 
-	.teamBlue {
-		fill: blue;
-	}
+			.teamBlue {
+				fill: blue;
+				fill-opacity: 0.2;
+			}
 
-	.teamGreen {
-		fill: green;
-	}
+			.teamGreen {
+				fill: green;
+				fill-opacity: 0.2;
+			}
 
-	.teamYellow {
-		fill: yellow;
-	}
+			.teamYellow {
+				fill: yellow;
+				fill-opacity: 0.2;
+			}
 
-	.teamCyan {
-		fill: darkcyan;
-	}
+			.teamCyan {
+				fill: darkcyan;
+				fill-opacity: 0.2;
+			}
 
-	.teamPurple {
-		fill: darkmagenta;
-	}
+			.teamPurple {
+				fill: darkmagenta;
+				fill-opacity: 0.2;
+			}
 
-	.teamOrange {
-		fill: darkorange;
-	}
+			.teamOrange {
+				fill: darkorange;
+				fill-opacity: 0.2;
+			}
 
-	.teamBrown {
-		fill: saddlebrown;
-	}
-</style>
+			.teamBrown {
+				fill: saddlebrown;
+				fill-opacity: 0.2;
+			}
+			#legend {
+				display: inline-block;
+				max-height: 640px;
+				overflow-y: scroll;
+			}
+			@media only print  {
+				#legend {
+					width: auto;
+					display: block;
+					height: auto;
+					overflow: visible;
+				}
+			}
+			.details.selected{
+				background-color: lightblue;
+			}
+		</style>
+		<title>Galaxy Map Generator</title>
+	<body>
+		<svg width="960" height="640"></svg>
+		<div id="legend"></div>
+		<div id="logger"></div>
+		<script src="https://d3js.org/d3.v4.min.js"></script>
 
-<svg width="960" height="640"></svg>
-<div id="details"></div>
-<div id="logger"></div>
-<script src="https://d3js.org/d3.v4.min.js"></script>
-
-<script>
+		<script>
 
 var polygons, link, site, voronoi, sites, diagram;
 var xNormA, yNormA, xNormB, yNormB;
@@ -119,9 +150,10 @@ function pointGen() {
 //for each faction, start in a random location and expand from there
 function assignFactions() {
 	var factionsColors = ['teamRed', 'teamBlue', 'teamGreen', 'teamYellow', 'teamOrange', 'teamCyan', 'teamPurple', 'teamBrown']
-	factionsColors.forEach(function (color) {
+	for(var i = 0; i < factionsColors.length; i++) {
+		var color = factionsColors[i];
 		var faction = generateFaction(color);
-		var index;
+		var index = undefined;
 		while(!index) {
 			index = Math.floor(Math.random() * diagram.cells.length);
 			var cell = diagram.cells[index];
@@ -130,7 +162,7 @@ function assignFactions() {
 			}
 		}
 		assignFaction(index, faction, .9, .35);
-	});
+	}
 }
 
 //Pick two aspects, making sure they don't conflict
@@ -173,12 +205,15 @@ function selectAspect(aspects) {
 function assignFaction(index, faction, expantion, decrement) {
 	var cell = diagram.cells[index];
 	//randomly assign a faction, for now one of two
-	if(cell.faction) return;
+	if(cell.site.faction) {
+		// 1/10th the change to claim an existing faction's cell
+		if(Math.random() > expantion/50) return;
+	}
 	cell.site.faction = faction;
 	polygons._groups[0][index].setAttribute("class", faction.color);
 	//now, with a random chance, pick an adjacent cell and apply the faction if it doesn't have one
-	cell.halfedges.forEach(function(hEdge) {
-		//var hEdge = cell.halfedges[hEdgeIndex];
+	for(var i = 0; i < cell.halfedges.length; i++) {
+		var hEdge = cell.halfedges[i];
 		//log("exploring cell " +index+" edge "+hEdgeIndex);
 		if(Math.random() < expantion) {
 			var edge = diagram.edges[hEdge];
@@ -192,19 +227,22 @@ function assignFaction(index, faction, expantion, decrement) {
 				assignFaction(neighbor.index, faction, expantion * decrement, decrement);
 			}
 		}
-	});
+	}
 }
 
 //for each cell, pick three random descriptions
 function assignDescriptions() {
-	diagram.cells.forEach(function (cell) {
+	for(var i = 0; i< diagram.cells.length; i++) {
+		var cell = diagram.cells[i];
+		var index = i;
 		var site = cell.site;
 		//pick three aspects per site
 		var planetAspects = generateAspects(getPlanetAspects(), 3);
 		var raceAspects = generateAspects(getRaceAspects(),3);
 		site.planet = planetAspects;
 		site.race = raceAspects;
-	});
+		site.id = index;
+	};
 }
 
 function init() {
@@ -225,7 +263,7 @@ function init() {
 	yNormB = gaussian(height/2 + height/7, height/10);
 
 	//main diagram references
-	sites = d3.range(200).map(pointGen);
+	sites = d3.range(200).map(pointGen).map( (site, index) => {site.id=index; return site;} );
 	voronoi = d3.voronoi().extent([[-1,-1], [width+1, height+1]]);
 	diagram = voronoi(sites);
 
@@ -237,14 +275,23 @@ function init() {
 		.enter()
 		.append("line")
 		.call(redrawLink);
-	site = svg.append("g")
+	/*site = svg.append("g")
 		.attr("class", "sites")
 		.selectAll("circle")
 		.data(sites)
 		.enter()
 		.append("circle")
 		.attr("r", 2.5)
-		.call(redrawSite);
+		.call(redrawSite);*/
+	site = svg.append("g")
+		.attr("class", "sites")
+		.selectAll("text")
+		.data(sites)
+		.enter()
+		.append("text")
+		.attr("font-size", 7)
+		.attr("font-family", "sans-serif")
+		.call(redrawTextSite);
 	polygons = svg.append("g")
 		.attr("class", "polygons")
 		.selectAll("path")
@@ -255,6 +302,8 @@ function init() {
 
 	assignFactions();
 	assignDescriptions();
+
+	createLegend();
 }
 
 //draw a region
@@ -284,18 +333,49 @@ function redrawSite(site) {
 		.attr("cy", function(d) { return d[1]*scaleY; });
 }
 
+function redrawTextSite(site) {
+	site
+		.attr("x", function(d) { return d[0]*scaleX -4; })
+		.attr("y", function(d) { return d[1]*scaleY +3; })
+		.text(function(d) {return d.id+1;});
+}
+ 
 //show the descriptions on the page
 function showDetails() {
 	//rescale the input coordinates to the graph coordinates
 	var site = diagram.find(d3.mouse(this)[0]/scaleX, d3.mouse(this)[1]/scaleY);
-	var detailsElem = document.getElementById("details");
+	var detail = document.getElementById("details_"+site.id);
+	var offset = detail.offsetTop -5;
+	var legend = document.getElementById("legend");
+	var detailList = document.getElementsByClassName("details");
+	//reset existing styles
+	for(var i = 0; i<detailList.length; i++) {
+		detailList[i].className="details";
+	}
+	detail.className="details selected";
+	legend.scrollTop = offset;
+}
+
+function getDetailsString(site) {
 	var planet = "Planet: "+site.planet.map(aspect=> aspect.name).join(", ");
 	var race = "<br/>Race: "+site.race.map(aspect=> aspect.name).join(", ");
 	var details = planet + race;
 	if(site.faction) {
 		details += "<br/>Faction: " + site.faction.aspects.map(aspect => aspect.name).join(", ");
 	}
-	detailsElem.innerHTML = details;
+	return details;
+}
+
+function createLegend() {
+	var legend = document.getElementById("legend");
+	var legendText = "<ul>\n";
+	for(var i=0; i<diagram.cells.length; i++) {
+		var site = diagram.cells[i].site;
+		legendText += "<li id=\"details_"+i+"\" class=\"details\">\n"+(i+1)+"<br/>\n";
+		legendText += getDetailsString(site);
+		legendText += "</li>\n";
+	}
+	legend.innerHTML = legendText;
 }
 
 function getFactionAspects() {
@@ -375,4 +455,6 @@ function getRaceAspects() {
 
 window.onload = function() { init(); };
 
-</script>
+		</script>
+	</body>
+</html>

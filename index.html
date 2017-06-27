@@ -245,6 +245,14 @@ function assignDescriptions() {
 	};
 }
 
+//adjust points so that they are slightly further appart
+function relaxation(points) {
+	var voronoi = d3.voronoi().extent([[-1,-1], [width+1, height+1]]);
+	var polygons = voronoi(points).polygons();
+	var centroids = polygons.map(d3.polygonCentroid);
+	return centroids;
+}
+
 function init() {
 	//view variables
 	svg 		= d3.select("svg");
@@ -263,7 +271,9 @@ function init() {
 	yNormB = gaussian(height/2 + height/7, height/10);
 
 	//main diagram references
-	sites = d3.range(200).map(pointGen).map( (site, index) => {site.id=index; return site;} );
+	sites = d3.range(200).map(pointGen);
+	sites = relaxation(sites);
+	sites.map( (site, index) => {site.id=index; return site;} );
 	voronoi = d3.voronoi().extent([[-1,-1], [width+1, height+1]]);
 	diagram = voronoi(sites);
 

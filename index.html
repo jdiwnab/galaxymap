@@ -1,111 +1,134 @@
 <!DOCTYPE html>
 <html>
-	<head>
-		<meta charset="utf-8">
-		<style>
-			html {
-				font-family: sans-serif;
-			}
+    <head>
+        <meta charset="utf-8">
+        <style>
+            html {
+                font-family: sans-serif;
+            }
 
-			svg {
-				background-image: url("m31.jpg");
-				background-repeat: no-repeat;
-				background-size: 100%;
-				display: inline-block;
-			}
+            svg {
+                background-image: url("m31.jpg");
+                background-repeat: no-repeat;
+                background-size: 100%;
+                display: inline-block;
+            }
 
-			.links {
-			  stroke: #000;
-			  stroke-opacity: 0.5;
-			}
+            .links {
+              stroke: #000;
+              stroke-opacity: 0.5;
+            }
 
-			.polygons {
-				fill: #DDD;
-				fill-opacity: 0.2;
-				stroke: #FFF;
-				stroke-opacity:.1;
-				pointer-events: all;
-			}
-			.sites {
-				fill: #000;
-				stroke: #fff;
-			}
+            .polygons {
+                fill: #DDD;
+                fill-opacity: 0.2;
+                stroke: #FFF;
+                stroke-opacity:.1;
+                pointer-events: all;
+            }
+            .sites {
+                fill: #000;
+                stroke: #fff;
+            }
 
-			.teamRed {
-				fill: red;
-				fill-opacity: 0.2;
-			}
+            .teamRed {
+                fill: red;
+                fill-opacity: 0.2;
+            }
 
-			.teamBlue {
-				fill: blue;
-				fill-opacity: 0.2;
-			}
+            .teamBlue {
+                fill: blue;
+                fill-opacity: 0.2;
+            }
 
-			.teamGreen {
-				fill: green;
-				fill-opacity: 0.2;
-			}
+            .teamGreen {
+                fill: green;
+                fill-opacity: 0.2;
+            }
 
-			.teamYellow {
-				fill: yellow;
-				fill-opacity: 0.2;
-			}
+            .teamYellow {
+                fill: yellow;
+                fill-opacity: 0.2;
+            }
 
-			.teamCyan {
-				fill: darkcyan;
-				fill-opacity: 0.2;
-			}
+            .teamCyan {
+                fill: darkcyan;
+                fill-opacity: 0.2;
+            }
 
-			.teamPurple {
-				fill: darkmagenta;
-				fill-opacity: 0.2;
-			}
+            .teamPurple {
+                fill: darkmagenta;
+                fill-opacity: 0.2;
+            }
 
-			.teamOrange {
-				fill: darkorange;
-				fill-opacity: 0.2;
-			}
+            .teamOrange {
+                fill: darkorange;
+                fill-opacity: 0.2;
+            }
 
-			.teamBrown {
-				fill: saddlebrown;
-				fill-opacity: 0.2;
-			}
-			#legend {
-				display: inline-block;
-				max-height: 640px;
-				overflow-y: scroll;
-			}
-			@media only print  {
-				#legend {
-					width: auto;
-					display: block;
-					height: auto;
-					overflow: visible;
-				}
-			}
-			.details.selected{
-				background-color: lightblue;
-			}
-		</style>
-		<title>Galaxy Map Generator</title>
-	<body>
-		<svg width="960" height="640"></svg>
-		<div id="legend"></div>
-		<div id="logger"></div>
-		<script src="https://d3js.org/d3.v4.min.js"></script>
+            .teamBrown {
+                fill: saddlebrown;
+                fill-opacity: 0.2;
+            }
+            #legend {
+                display: inline-block;
+                max-height: 640px;
+                overflow-y: scroll;
+            }
+            @media only print  {
+                #legend {
+                    width: auto;
+                    display: block;
+                    height: auto;
+                    overflow: visible;
+                }
+            }
+            .details.selected{
+                background-color: lightblue;
+            }
+            .details {
+                display: inline-block;
+                position: relative;
+                border: 1px solid black;
+                border-radius: 5px;
+                margin: 5px;
+                padding: 2px;
+                vertical-align: top;
+                width: 20%;
+            }
+            .details .details_header {
+                font-weight: bold;
+                display: block;
+            }
+            .details .details_planet {
+                display: block;
+            }
+            .details .details_race {
+                display: block;
+            }
+            .details .details_faction {
+                display: block;
+            }
+        </style>
+        <title>Galaxy Map Generator</title>
+    <body>
+        <svg width="960" height="640"></svg>
+        <div id="legend"></div>
+        <div id="logger"></div>
+        <script src="https://d3js.org/d3.v4.min.js"></script>
 
-		<script>
+        <script>
 
 var polygons, link, site, voronoi, sites, diagram;
 var xNormA, yNormA, xNormB, yNormB;
 var svg, viewWidth, viewHeight, width, height;
-var scaleX, scaleY, offsetX, offsetY, dragging;
+var zoom, offsetX, offsetY, dragging;
 
 //log messages to console and to the view
 function log(msg) {
-	var logger = document.getElementById("logger");
-	logger.innerHTML = logger.innerHTML + "<br/>" + msg;
-	console.log(msg);
+    var logger = document.getElementById("logger");
+    logger.innerHTML = logger.innerHTML + "<br/>" + msg;
+    console.log(msg);
 }
 
 //returns a function that generates in a given distribution
@@ -140,390 +163,414 @@ function gaussian(mean, stdev) {
 
 //pick out points in a distribution that looks nice
 function pointGen() {
-	var point;
-	if(Math.random() < .5) {
-		point = [xNormA(), yNormA()]
-	} else {
-		point = [xNormB(), yNormB()]
-	}
-	return point;
+    var point;
+    if(Math.random() < .5) {
+        point = [xNormA(), yNormA()]
+    } else {
+        point = [xNormB(), yNormB()]
+    }
+    return point;
 }
 
 //for each faction, start in a random location and expand from there
 function assignFactions() {
-	var factionsColors = ['teamRed', 'teamBlue', 'teamGreen', 'teamYellow', 'teamOrange', 'teamCyan', 'teamPurple', 'teamBrown']
-	for(var i = 0; i < factionsColors.length; i++) {
-		var color = factionsColors[i];
-		var faction = generateFaction(color);
-		var index = undefined;
-		while(!index) {
-			index = Math.floor(Math.random() * diagram.cells.length);
-			var cell = diagram.cells[index];
-			if (cell.faction) {
-				index = undefined;
-			}
-		}
-		assignFaction(index, faction, .9, .35);
-	}
+    var factionsColors = ['teamRed', 'teamBlue', 'teamGreen', 'teamYellow', 'teamOrange', 'teamCyan', 'teamPurple', 'teamBrown']
+    for(var i = 0; i < factionsColors.length; i++) {
+        var color = factionsColors[i];
+        var faction = generateFaction(color);
+        var index = undefined;
+        while(!index) {
+            index = Math.floor(Math.random() * diagram.cells.length);
+            var cell = diagram.cells[index];
+            if (cell.faction) {
+                index = undefined;
+            }
+        }
+        assignFaction(index, faction, .9, .35);
+    }
 }
 
 //Pick two aspects, making sure they don't conflict
 function generateFaction(color) {
-	var aspects = generateAspects(getFactionAspects(), 2);
-	return {color: color, aspects: aspects};
+    var aspects = generateAspects(getFactionAspects(), 2);
+    return {color: color, aspects: aspects};
 }
 
 function generateAspects(list, count) {
-	var aspects = [];
-	while(aspects.length < count) {
-		var aspect = selectAspect(list);
-		for(var i=0; i< aspects.length; i++){
-			if(aspects[i].name == aspect.name) {
-				aspect = null;
-				break;
-			}
-			for(var j=0; j<aspects[i].excludes.length; j++) {
-				if( aspects[i].excludes[j] == aspect.name ) {
-					aspect = null;
-					break;
-				}
-			}
-			if(aspect == null) break;
-		}
-		if(aspect !== null) {
-			aspects.push(aspect);
-		}
-	};
-	return aspects;
+    var aspects = [];
+    while(aspects.length < count) {
+        var aspect = selectAspect(list);
+        for(var i=0; i< aspects.length; i++){
+            if(aspects[i].name == aspect.name) {
+                aspect = null;
+                break;
+            }
+            for(var j=0; j<aspects[i].excludes.length; j++) {
+                if( aspects[i].excludes[j] == aspect.name ) {
+                    aspect = null;
+                    break;
+                }
+            }
+            if(aspect == null) break;
+        }
+        if(aspect !== null) {
+            aspects.push(aspect);
+        }
+    };
+    return aspects;
 }
 
 function selectAspect(aspects) {
-	return aspects[Math.floor(Math.random() * aspects.length)];
+    return aspects[Math.floor(Math.random() * aspects.length)];
 }
 
 //assign a faction to a cell, given by 'index'
 //expand with a chance of 'expantion' to any given adjacent cells
 //decrease rate of expantion by 'decrement'
 function assignFaction(index, faction, expantion, decrement) {
-	var cell = diagram.cells[index];
-	//randomly assign a faction, for now one of two
-	if(cell.site.faction) {
-		// 1/10th the change to claim an existing faction's cell
-		if(Math.random() > expantion/50) return;
-	}
-	cell.site.faction = faction;
-	polygons._groups[0][index].setAttribute("class", faction.color);
-	//now, with a random chance, pick an adjacent cell and apply the faction if it doesn't have one
-	for(var i = 0; i < cell.halfedges.length; i++) {
-		var hEdge = cell.halfedges[i];
-		//log("exploring cell " +index+" edge "+hEdgeIndex);
-		if(Math.random() < expantion) {
-			var edge = diagram.edges[hEdge];
-			//find neighbor that is not the current cell
-			var neighbor = edge.left;
-			if (neighbor === cell.site || !neighbor){ 
-				neighbor = edge.right;
-			}
-			//if we have a neighbor
-			if(neighbor) {
-				assignFaction(neighbor.index, faction, expantion * decrement, decrement);
-			}
-		}
-	}
+    var cell = diagram.cells[index];
+    //randomly assign a faction, for now one of two
+    if(cell.site.faction) {
+        // 1/10th the change to claim an existing faction's cell
+        if(Math.random() > expantion/50) return;
+    }
+    cell.site.faction = faction;
+    polygons._groups[0][index].setAttribute("class", faction.color);
+    //now, with a random chance, pick an adjacent cell and apply the faction if it doesn't have one
+    for(var i = 0; i < cell.halfedges.length; i++) {
+        var hEdge = cell.halfedges[i];
+        //log("exploring cell " +index+" edge "+hEdgeIndex);
+        if(Math.random() < expantion) {
+            var edge = diagram.edges[hEdge];
+            //find neighbor that is not the current cell
+            var neighbor = edge.left;
+            if (neighbor === cell.site || !neighbor){ 
+                neighbor = edge.right;
+            }
+            //if we have a neighbor
+            if(neighbor) {
+                assignFaction(neighbor.index, faction, expantion * decrement, decrement);
+            }
+        }
+    }
 }
 
 //for each cell, pick three random descriptions
 function assignDescriptions() {
-	for(var i = 0; i< diagram.cells.length; i++) {
-		var cell = diagram.cells[i];
-		var index = i;
-		var site = cell.site;
-		//pick three aspects per site
-		var planetAspects = generateAspects(getPlanetAspects(), 3);
-		var raceAspects = generateAspects(getRaceAspects(),3);
-		site.planet = planetAspects;
-		site.race = raceAspects;
-		site.id = index;
-	};
+    for(var i = 0; i< diagram.cells.length; i++) {
+        var cell = diagram.cells[i];
+        var index = i;
+        var site = cell.site;
+        //pick three aspects per site
+        var planetAspects = generateAspects(getPlanetAspects(), 3);
+        var raceAspects = generateAspects(getRaceAspects(),3);
+        site.planet = planetAspects;
+        site.race = raceAspects;
+        site.id = index;
+    };
 }
 
 //adjust points so that they are slightly further appart
 function relaxation(points) {
-	var voronoi = d3.voronoi().extent([[-1,-1], [width+1, height+1]]);
-	var polygons = voronoi(points).polygons();
-	var centroids = polygons.map(d3.polygonCentroid);
-	return centroids;
+    var voronoi = d3.voronoi().extent([[-1,-1], [width+1, height+1]]);
+    var polygons = voronoi(points).polygons();
+    var centroids = polygons.map(d3.polygonCentroid);
+    return centroids;
 }
 
 function init() {
-	//view variables
-	svg 		= d3.select("svg");
-	viewWidth	= svg.attr("width");
-	viewHeight	= svg.attr("height");
-	width		= 960;
-	height		= 640;
-	scaleX		= viewWidth/width;
-	scaleY		= viewHeight/height;
-	offsetX		= 0;
-	offsetY		= 0;
-	voronoiRadius = width/10;
+    //view variables
+    svg         = d3.select("svg");
+    viewWidth    = svg.attr("width");
+    viewHeight    = svg.attr("height");
+    width        = 960;
+    height        = 640;
+    zoom        = viewWidth/width;
+    offsetX        = 0;
+    offsetY        = 0;
+    voronoiRadius = width/10;
 
-	//Two distrubutions make it look interesting
-	xNormA = gaussian(width/2 + width/8, width/10);
-	yNormA = gaussian(height/2 - height/7, height/10);
-	xNormB = gaussian(width/2 - width/8, width/10);
-	yNormB = gaussian(height/2 + height/7, height/10);
+    //Two distrubutions make it look interesting
+    xNormA = gaussian(width/2 + width/8, width/10);
+    yNormA = gaussian(height/2 - height/7, height/10);
+    xNormB = gaussian(width/2 - width/8, width/10);
+    yNormB = gaussian(height/2 + height/7, height/10);
 
-	//main diagram references
-	sites = d3.range(200).map(pointGen);
-	sites = relaxation(sites);
-	sites.map( (site, index) => {site.id=index; return site;} );
-	voronoi = d3.voronoi().extent([[-1,-1], [width+1, height+1]]);
-	diagram = voronoi(sites);
+    //main diagram references
+    sites = d3.range(200).map(pointGen);
+    sites = relaxation(sites);
+    sites.map( (site, index) => {site.id=index; return site;} );
+    voronoi = d3.voronoi().extent([[-1,-1], [width+1, height+1]]);
+    diagram = voronoi(sites);
 
-	//init the view
-	link = svg.append("g")
-		.attr("class", "links")
-		.selectAll("line")
-		.data(voronoi.links(sites))
-		.enter()
-		.append("line")
-		.call(redrawLink);
-	/*site = svg.append("g")
-		.attr("class", "sites")
-		.selectAll("circle")
-		.data(sites)
-		.enter()
-		.append("circle")
-		.attr("r", 2.5)
-		.call(redrawSite);*/
-	site = svg.append("g")
-		.attr("class", "sites")
-		.selectAll("text")
-		.data(sites)
-		.enter()
-		.append("text")
-		.attr("font-size", 7)
-		.attr("font-family", "sans-serif")
-		.call(redrawTextSite);
-	polygons = svg.append("g")
-		.attr("class", "polygons")
-		.selectAll("path")
-		.data(voronoi.polygons(sites))
-		.enter()
-		.append("path")
-		.call(redrawPolygon);
-	assignFactions();
-	assignDescriptions();
+    //init the view
+    link = svg.append("g")
+        .attr("class", "links")
+        .selectAll("line")
+        .data(voronoi.links(sites))
+        .enter()
+        .append("line")
+        .call(redrawLink);
+    /*site = svg.append("g")
+        .attr("class", "sites")
+        .selectAll("circle")
+        .data(sites)
+        .enter()
+        .append("circle")
+        .attr("r", 2.5)
+        .call(redrawSite);*/
+    site = svg.append("g")
+        .attr("class", "sites")
+        .selectAll("text")
+        .data(sites)
+        .enter()
+        .append("text")
+        .attr("font-size", 7)
+        .attr("font-family", "sans-serif")
+        .call(redrawTextSite);
+    polygons = svg.append("g")
+        .attr("class", "polygons")
+        .selectAll("path")
+        .data(voronoi.polygons(sites))
+        .enter()
+        .append("path")
+        .call(redrawPolygon);
+    assignFactions();
+    assignDescriptions();
 
-	createLegend();
+    createLegend();
 
-	dragging=false;
+    dragging=false;
 
-	svg.on("mousewheel", handleMouseWheel)
-		.on("mousedown", handleDragStart)
-		.on("mouseup", handleDragEnd)
-		.on("mousemove", handleDrag)
-		.on("mouseleave", handleDragEnd);
+    svg.on("mousewheel", handleMouseWheel)
+        .on("mousedown", handleDragStart)
+        .on("mouseup", handleDragEnd)
+        .on("mousemove", handleDrag)
+        .on("mouseleave", handleDragEnd);
 }
 
 function redraw() {
-	var fontsize = scaleX * 7
-	svg.selectAll("line")
-		.call(redrawLink);
-	svg.selectAll("text")
-		.attr("font-size", fontsize)
-		.call(redrawTextSite);
-	svg.selectAll("path")
-		.call(redrawPolygon);
+    var fontsize = zoom * 7
+    svg.selectAll("line")
+        .call(redrawLink);
+    svg.selectAll("text")
+        .attr("font-size", fontsize)
+        .call(redrawTextSite);
+    svg.selectAll("path")
+        .call(redrawPolygon);
 
 }
 
 //draw a region
 function redrawPolygon(polygon) {
-	//console.log(polygon);
-	polygon.attr("d", function(d) {
-		return d ? "M" + d.map(function(i) {
-				return [i[0]*scaleX + offsetX, i[1]*scaleY + offsetY];
-			}).join("L") + "Z" : null;
-		})
-		.on("mouseover", function() { this.setAttribute("style", "fill-opacity: .5"); })
-		.on("mouseout", function() { this.setAttribute("style", "fill-opacity: .2"); })
-		.on("click", showDetails);
+    //console.log(polygon);
+    polygon.attr("d", function(d) {
+        return d ? "M" + d.map(function(i) {
+                return [i[0]*zoom + offsetX, i[1]*zoom + offsetY];
+            }).join("L") + "Z" : null;
+        })
+        .on("mouseover", function() { this.setAttribute("style", "fill-opacity: .5"); })
+        .on("mouseout", function() { this.setAttribute("style", "fill-opacity: .2"); })
+        .on("click", showDetails);
 }
 //draw a star lane
 function redrawLink(link) {
-	link
-		.attr("x1", function(d) { return d.source[0]*scaleX + offsetX; })
-		.attr("y1", function(d) { return d.source[1]*scaleY + offsetY; })
-		.attr("x2", function(d) { return d.target[0]*scaleX + offsetX; })
-		.attr("y2", function(d) { return d.target[1]*scaleY + offsetY; });
+    link
+        .attr("x1", function(d) { return d.source[0]*zoom + offsetX; })
+        .attr("y1", function(d) { return d.source[1]*zoom + offsetY; })
+        .attr("x2", function(d) { return d.target[0]*zoom + offsetX; })
+        .attr("y2", function(d) { return d.target[1]*zoom + offsetY; });
 }
 //draw a star/planet
 function redrawSite(site) {
-	site
-		.attr("cx", function(d) { return d[0]*scaleX + offsetX; })
-		.attr("cy", function(d) { return d[1]*scaleY + offsetY; });
+    site
+        .attr("cx", function(d) { return d[0]*zoom + offsetX; })
+        .attr("cy", function(d) { return d[1]*zoom + offsetY; });
 }
 
 function redrawTextSite(site) {
-	site
-		.attr("x", function(d) { return d[0]*scaleX -4 + offsetX; })
-		.attr("y", function(d) { return d[1]*scaleY +3 + offsetY; })
-		.text(function(d) {return d.id+1;});
+    site
+        .attr("x", function(d) { return d[0]*zoom -4 + offsetX; })
+        .attr("y", function(d) { return d[1]*zoom +3 + offsetY; })
+        .text(function(d) {return d.id+1;});
 }
 
 function handleMouseWheel(e) {
-	var e = window.event || e;
-	var delta = Math.max(-1, Math.min(1, (e.wheelDelta || -e.detail)));
-	//console.log("mouse wheel: "+ delta);
-	scaleX = scaleX + (1 * delta /50);
-	scaleY = scaleY + (1 * delta /50);
-	svg.style("background-size", scaleX*100 + "%");
-	redraw();
-	e.preventDefault();
-	return true;
+    var e = window.event || e;
+    var delta = Math.max(-1, Math.min(1, (e.wheelDelta || -e.detail)));
+    //console.log("mouse wheel: "+ delta);
+    zoom = zoom + (1 * delta /50);
+    svg.style("background-size", zoom*100 + "%");
+    redraw();
+    e.preventDefault();
+    return true;
 }
 
 function handleDragStart(event) {
-	var e = window.event || event;
-	dragging=true;
-	e.preventDefault();
+    var e = window.event || event;
+    dragging=true;
+    e.preventDefault();
 }
 
 function handleDragEnd(event) {
-	var e = window.event || event;
-	dragging=false;
-	e.preventDefault();
+    var e = window.event || event;
+    dragging=false;
+    e.preventDefault();
 }
 function handleDrag(event) {
-	var e = window.event || event;
-	if(dragging) {
-		console.log("("+e.movementX+","+e.movementY+")");
-		offsetX += e.movementX;
-		offsetY += e.movementY;
-		svg.style("background-position", offsetX+" "+offsetY);
-		redraw();
-	}
-	e.preventDefault()
+    var e = window.event || event;
+    if(dragging) {
+        offsetX += e.movementX;
+        offsetY += e.movementY;
+        svg.style("background-position", offsetX+" "+offsetY);
+        redraw();
+    }
+    e.preventDefault()
 }
  
 //show the descriptions on the page
 function showDetails() {
-	//rescale the input coordinates to the graph coordinates
-	var site = diagram.find((d3.mouse(this)[0] - offsetX)/scaleX, (d3.mouse(this)[1] - offsetY)/scaleY);
-	var detail = document.getElementById("details_"+site.id);
-	var legend = document.getElementById("legend");
-	var offset = detail.offsetTop - legend.offsetTop;
-	var detailList = document.getElementsByClassName("details");
-	//reset existing styles
-	for(var i = 0; i<detailList.length; i++) {
-		detailList[i].className="details";
-	}
-	detail.className="details selected";
-	legend.scrollTop = offset;
+    //rescale the input coordinates to the graph coordinates
+    var site = diagram.find((d3.mouse(this)[0] - offsetX)/zoom, (d3.mouse(this)[1] - offsetY)/zoom);
+    var detail = document.getElementById("details_"+site.id);
+    var legend = document.getElementById("legend");
+    var offset = detail.offsetTop - legend.offsetTop;
+    var detailList = document.getElementsByClassName("details");
+    //reset existing styles
+    for(var i = 0; i<detailList.length; i++) {
+        detailList[i].className="details";
+    }
+    detail.className="details selected";
+    legend.scrollTop = offset;
 }
 
+function getDetailsBlock(site) {
+    var details = document.createElement('div');
+    details.id = "details_"+(site.id);
+    details.className = "details";
+
+    var header = document.createElement('span');
+    header.className="details_header";
+    header.textContent = site.id + 1;
+    details.append(header);
+
+    var planet = document.createElement('span');
+    planet.className="details_planet";
+    planet.textContent = "Planet: "+site.planet.map(aspect=> aspect.name).join(", ");
+    details.append(planet);
+
+    var race = document.createElement('span');
+    race.className="details_race";
+    race.textContent = "Race: "+site.race.map(aspect=> aspect.name).join(", ");
+    details.append(race);
+
+       if(site.faction) {
+           var faction = document.createElement('span');
+        faction.className="details_faction";
+        faction.textContent = "Faction: " + site.faction.aspects.map(aspect => aspect.name).join(", ");
+        details.append(faction);
+    }
+
+    return details;
+}
 function getDetailsString(site) {
-	var planet = "Planet: "+site.planet.map(aspect=> aspect.name).join(", ");
-	var race = "<br/>Race: "+site.race.map(aspect=> aspect.name).join(", ");
-	var details = planet + race;
-	if(site.faction) {
-		details += "<br/>Faction: " + site.faction.aspects.map(aspect => aspect.name).join(", ");
-	}
-	return details;
+    var planet = "Planet: "+site.planet.map(aspect=> aspect.name).join(", ");
+    var race = "<br/>Race: "+site.race.map(aspect=> aspect.name).join(", ");
+    var details = planet + race;
+    if(site.faction) {
+        details += "<br/>Faction: " + site.faction.aspects.map(aspect => aspect.name).join(", ");
+    }
+    return details;
 }
 
 //discover all sites and build up a legend.
 function createLegend() {
-	var legend = document.getElementById("legend");
-	var legendText = "<ul>\n";
-	for(var i=0; i<diagram.cells.length; i++) {
-		var site = diagram.cells[i].site;
-		legendText += "<li id=\"details_"+i+"\" class=\"details\">\n"+(i+1)+"<br/>\n";
-		legendText += getDetailsString(site);
-		legendText += "</li>\n";
-	}
-	legend.innerHTML = legendText;
+    var legend = document.getElementById("legend");
+    var legendText = "<ul>\n";
+    for(var i=0; i<diagram.cells.length; i++) {
+        var site = diagram.cells[i].site;
+        legend.append(getDetailsBlock(site));
+    }
+    //legend.innerHTML = legendText;
 }
 
 function getFactionAspects() {
-	return [
-	{name:'industrialized', excludes:['primitive']},
-	{name:'primitive', excludes:['industrialized']},
-	{name:'monarchy', excludes:[]},
-	{name:'agressive', excludes:['peaceful']},
-	{name:'peaceful', excludes:['agressive']},
-	{name:'democracy', excludes:[]},
-	{name:'religious', excludes:[]},
-	{name:'scientists', excludes:[]},
-	{name:'authoritarian', excludes:['democracy']},
-	{name:'confederation', excludes:['empire', 'hegemony']},
-	{name:'empire', excludes:['hegemony', 'confederation']},
-	{name:'hegemony', excludes:['empire', 'confederation']},
-	{name:'theocracy', excludes:[]},
-	];
+    return [
+    {name:'industrialized', excludes:['primitive']},
+    {name:'primitive', excludes:['industrialized']},
+    {name:'monarchy', excludes:[]},
+    {name:'agressive', excludes:['peaceful']},
+    {name:'peaceful', excludes:['agressive']},
+    {name:'democracy', excludes:[]},
+    {name:'religious', excludes:[]},
+    {name:'scientists', excludes:[]},
+    {name:'authoritarian', excludes:['democracy']},
+    {name:'confederation', excludes:['empire', 'hegemony']},
+    {name:'empire', excludes:['hegemony', 'confederation']},
+    {name:'hegemony', excludes:['empire', 'confederation']},
+    {name:'theocracy', excludes:[]},
+    ];
 }
 
 function getPlanetAspects() {
-	return [
-	{name:'high gravity', excludes:['normal gravity', 'low gravity']},
-	{name:'normal gravity', excludes:['high gravity', 'low gravity']},
-	{name:'low gravity', excludes:['normal gravity', 'high gravity']},
-	{name:'outpost', excludes:['colony','homeworld']},
-	{name:'colony', excludes:['outpost','homeworld']},
-	{name:'homeworld', excludes:['outpost','colony']},
-	{name:'desert', excludes:['swamp','oceans','icy','water-covered','underwater','jungle','forest','asteroid','gas giant']},
-	{name:'swamp', excludes:['desert','oceans','icy','water-covered','underwater','jungle','forest','asteroid','gas giant']},
-	{name:'oceans', excludes:['desert','swamp','icy','water-covered','underwater','jungle','forest','asteroid','gas giant']},
-	{name:'icy', excludes:['desert','swamp','oceans','water-covered','underwater','jungle','forest','asteroid','gas giant']},
-	{name:'water-covered', excludes:['desert','swamp','oceans','icy','underwater','jungle','forest','asteroid','gas giant']},
-	{name:'underwater', excludes:['desert','swamp','oceans','icy','water-covered','jungle','forest','asteroid','gas giant']},
-	{name:'jungle', excludes:['desert','swamp','oceans','icy','water-covered','underwater','forest','asteroid','gas giant']},
-	{name:'forest', excludes:['desert','swamp','oceans','icy','water-covered','underwater','jungle','asteroid','gas giant']},
-	{name:'asteroid', excludes:['moon','gas giant','desert','swamp','oceans','water-covered','underwater','jungle','forest']},
-	{name:'moon', excludes:['asteroid','gas giant']},
-	{name:'gas giant', excludes:['asteroid','moon','desert','swamp','oceans','water-covered','underwater','jungle','forest']},
-	{name:'capitol', excludes:['outpost','colony']},
-	{name:'tidaly-locked', excludes:[]},
-	];
+    return [
+    {name:'high gravity', excludes:['normal gravity', 'low gravity']},
+    {name:'normal gravity', excludes:['high gravity', 'low gravity']},
+    {name:'low gravity', excludes:['normal gravity', 'high gravity']},
+    {name:'outpost', excludes:['colony','homeworld']},
+    {name:'colony', excludes:['outpost','homeworld']},
+    {name:'homeworld', excludes:['outpost','colony']},
+    {name:'desert', excludes:['swamp','oceans','icy','water-covered','underwater','jungle','forest','asteroid','gas giant']},
+    {name:'swamp', excludes:['desert','oceans','icy','water-covered','underwater','jungle','forest','asteroid','gas giant']},
+    {name:'oceans', excludes:['desert','swamp','icy','water-covered','underwater','jungle','forest','asteroid','gas giant']},
+    {name:'icy', excludes:['desert','swamp','oceans','water-covered','underwater','jungle','forest','asteroid','gas giant']},
+    {name:'water-covered', excludes:['desert','swamp','oceans','icy','underwater','jungle','forest','asteroid','gas giant']},
+    {name:'underwater', excludes:['desert','swamp','oceans','icy','water-covered','jungle','forest','asteroid','gas giant']},
+    {name:'jungle', excludes:['desert','swamp','oceans','icy','water-covered','underwater','forest','asteroid','gas giant']},
+    {name:'forest', excludes:['desert','swamp','oceans','icy','water-covered','underwater','jungle','asteroid','gas giant']},
+    {name:'asteroid', excludes:['moon','gas giant','desert','swamp','oceans','water-covered','underwater','jungle','forest']},
+    {name:'moon', excludes:['asteroid','gas giant']},
+    {name:'gas giant', excludes:['asteroid','moon','desert','swamp','oceans','water-covered','underwater','jungle','forest']},
+    {name:'capitol', excludes:['outpost','colony']},
+    {name:'tidaly-locked', excludes:[]},
+    ];
 }
 
 function getRaceAspects() {
-	return [
-	{name:'industrialized', excludes:['agrarian']},
-	{name:'mechanized', excludes:['agrarian', 'arborial', 'plant shaper']},
-	{name:'agrarian', excludes:['industrialized','mechanized']},
-	{name:'peaceful', excludes:['agressive']},
-	{name:'agressive', excludes:['peaceful']},
-	{name:'xenophobic', excludes:['xenophile']},
-	{name:'xenophile', excludes:['xenophobic']},
-	{name:'welcoming', excludes:[]},
-	{name:'wealthy', excludes:['poor']},
-	{name:'poor', excludes:['wealthy']},
-	{name:'monarchy', excludes:['democracy', 'confederation', 'anarchy', 'theocracy']},
-	{name:'democracy', excludes:['monarchy', 'confederation', 'anarchy', 'theocracy']},
-	{name:'confederation', excludes:['monarchy', 'democracy', 'anarchy', 'theocracy']},
-	{name:'anarchy', excludes:['monarchy', 'democracy', 'confederation', 'theocracy']},
-	{name:'theocracy', excludes:['monarchy', 'democracy', 'confederation', 'anarchy']},
-	{name:'religious', excludes:[]},
-	{name:'ecologist', excludes:[]},
-	{name:'pacifist', excludes:[]},
-	{name:'authoritarian', excludes:[]},
-	{name:'scientists', excludes:[]},
-	{name:'greedy', excludes:['communistic']},
-	{name:'communistic', excludes:['greedy']},
-	{name:'spacefaring', excludes:[]},
-	{name:'robotic', excludes:['bioengeered', 'arborial','plant shaper']},
-	{name:'bioengeered', excludes:['robotic','arborial']},
-	{name:'arborial', excludes:['robotic','bioengeered']},
-	{name:'plant shaper', excludes:['robotic','mechanized']},
+    return [
+    {name:'industrialized', excludes:['agrarian']},
+    {name:'mechanized', excludes:['agrarian', 'arborial', 'plant shaper']},
+    {name:'agrarian', excludes:['industrialized','mechanized']},
+    {name:'peaceful', excludes:['agressive']},
+    {name:'agressive', excludes:['peaceful']},
+    {name:'xenophobic', excludes:['xenophile']},
+    {name:'xenophile', excludes:['xenophobic']},
+    {name:'welcoming', excludes:[]},
+    {name:'wealthy', excludes:['poor']},
+    {name:'poor', excludes:['wealthy']},
+    {name:'monarchy', excludes:['democracy', 'confederation', 'anarchy', 'theocracy']},
+    {name:'democracy', excludes:['monarchy', 'confederation', 'anarchy', 'theocracy']},
+    {name:'confederation', excludes:['monarchy', 'democracy', 'anarchy', 'theocracy']},
+    {name:'anarchy', excludes:['monarchy', 'democracy', 'confederation', 'theocracy']},
+    {name:'theocracy', excludes:['monarchy', 'democracy', 'confederation', 'anarchy']},
+    {name:'religious', excludes:[]},
+    {name:'ecologist', excludes:[]},
+    {name:'pacifist', excludes:[]},
+    {name:'authoritarian', excludes:[]},
+    {name:'scientists', excludes:[]},
+    {name:'greedy', excludes:['communistic']},
+    {name:'communistic', excludes:['greedy']},
+    {name:'spacefaring', excludes:[]},
+    {name:'robotic', excludes:['bioengeered', 'arborial','plant shaper']},
+    {name:'bioengeered', excludes:['robotic','arborial']},
+    {name:'arborial', excludes:['robotic','bioengeered']},
+    {name:'plant shaper', excludes:['robotic','mechanized']},
 
-	];
+    ];
 }
 
 window.onload = function() { init(); };
 
-		</script>
-	</body>
+        </script>
+    </body>
 </html>

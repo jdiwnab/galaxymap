@@ -9,6 +9,7 @@
 
 			svg {
 				background-image: url("m31.jpg");
+				background-repeat: no-repeat;
 				background-size: 100%;
 				display: inline-block;
 			}
@@ -97,7 +98,8 @@
 
 var polygons, link, site, voronoi, sites, diagram;
 var xNormA, yNormA, xNormB, yNormB;
-var svg, viewWidth, viewHeight, width, height, scaleX, scaleY;
+var svg, viewWidth, viewHeight, width, height;
+var scaleX, scaleY, offsetX, offsetY, dragging;
 
 //log messages to console and to the view
 function log(msg) {
@@ -245,15 +247,25 @@ function assignDescriptions() {
 	};
 }
 
+//adjust points so that they are slightly further appart
+function relaxation(points) {
+	var voronoi = d3.voronoi().extent([[-1,-1], [width+1, height+1]]);
+	var polygons = voronoi(points).polygons();
+	var centroids = polygons.map(d3.polygonCentroid);
+	return centroids;
+}
+
 function init() {
 	//view variables
 	svg 		= d3.select("svg");
 	viewWidth	= svg.attr("width");
 	viewHeight	= svg.attr("height");
-	width		= 1536;
-	height		= 1024;
+	width		= 960;
+	height		= 640;
 	scaleX		= viewWidth/width;
 	scaleY		= viewHeight/height;
+	offsetX		= 0;
+	offsetY		= 0;
 	voronoiRadius = width/10;
 
 	//Two distrubutions make it look interesting
@@ -263,7 +275,9 @@ function init() {
 	yNormB = gaussian(height/2 + height/7, height/10);
 
 	//main diagram references
-	sites = d3.range(200).map(pointGen).map( (site, index) => {site.id=index; return site;} );
+	sites = d3.range(200).map(pointGen);
+	sites = relaxation(sites);
+	sites.map( (site, index) => {site.id=index; return site;} );
 	voronoi = d3.voronoi().extent([[-1,-1], [width+1, height+1]]);
 	diagram = voronoi(sites);
 
@@ -299,11 +313,30 @@ function init() {
 		.enter()
 		.append("path")
 		.call(redrawPolygon);
-
 	assignFactions();
 	assignDescriptions();
 
 	createLegend();
+
+	dragging=false;
+
+	svg.on("mousewheel", handleMouseWheel)
+		.on("mousedown", handleDragStart)
+		.on("mouseup", handleDragEnd)
+		.on("mousemove", handleDrag)
+		.on("mouseleave", handleDragEnd);
+}
+
+function redraw() {
+	var fontsize = scaleX * 7
+	svg.selectAll("line")
+		.call(redrawLink);
+	svg.selectAll("text")
+		.attr("font-size", fontsize)
+		.call(redrawTextSite);
+	svg.selectAll("path")
+		.call(redrawPolygon);
+
 }
 
 //draw a region
@@ -311,39 +344,74 @@ function redrawPolygon(polygon) {
 	//console.log(polygon);
 	polygon.attr("d", function(d) {
 		return d ? "M" + d.map(function(i) {
-				return [i[0]*scaleX, i[1]*scaleY];
+				return [i[0]*scaleX + offsetX, i[1]*scaleY + offsetY];
 			}).join("L") + "Z" : null;
 		})
 		.on("mouseover", function() { this.setAttribute("style", "fill-opacity: .5"); })
 		.on("mouseout", function() { this.setAttribute("style", "fill-opacity: .2"); })
-		.on("mousedown", showDetails);
+		.on("click", showDetails);
 }
 //draw a star lane
 function redrawLink(link) {
 	link
-		.attr("x1", function(d) { return d.source[0]*scaleX; })
-		.attr("y1", function(d) { return d.source[1]*scaleY; })
-		.attr("x2", function(d) { return d.target[0]*scaleX; })
-		.attr("y2", function(d) { return d.target[1]*scaleY; });
+		.attr("x1", function(d) { return d.source[0]*scaleX + offsetX; })
+		.attr("y1", function(d) { return d.source[1]*scaleY + offsetY; })
+		.attr("x2", function(d) { return d.target[0]*scaleX + offsetX; })
+		.attr("y2", function(d) { return d.target[1]*scaleY + offsetY; });
 }
 //draw a star/planet
 function redrawSite(site) {
 	site
-		.attr("cx", function(d) { return d[0]*scaleX; })
-		.attr("cy", function(d) { return d[1]*scaleY; });
+		.attr("cx", function(d) { return d[0]*scaleX + offsetX; })
+		.attr("cy", function(d) { return d[1]*scaleY + offsetY; });
 }
 
 function redrawTextSite(site) {
 	site
-		.attr("x", function(d) { return d[0]*scaleX -4; })
-		.attr("y", function(d) { return d[1]*scaleY +3; })
+		.attr("x", function(d) { return d[0]*scaleX -4 + offsetX; })
+		.attr("y", function(d) { return d[1]*scaleY +3 + offsetY; })
 		.text(function(d) {return d.id+1;});
+}
+
+function handleMouseWheel(e) {
+	var e = window.event || e;
+	var delta = Math.max(-1, Math.min(1, (e.wheelDelta || -e.detail)));
+	//console.log("mouse wheel: "+ delta);
+	scaleX = scaleX + (1 * delta /50);
+	scaleY = scaleY + (1 * delta /50);
+	svg.style("background-size", scaleX*100 + "%");
+	redraw();
+	e.preventDefault();
+	return true;
+}
+
+function handleDragStart(event) {
+	var e = window.event || event;
+	dragging=true;
+	e.preventDefault();
+}
+
+function handleDragEnd(event) {
+	var e = window.event || event;
+	dragging=false;
+	e.preventDefault();
+}
+function handleDrag(event) {
+	var e = window.event || event;
+	if(dragging) {
+		console.log("("+e.movementX+","+e.movementY+")");
+		offsetX += e.movementX;
+		offsetY += e.movementY;
+		svg.style("background-position", offsetX+" "+offsetY);
+		redraw();
+	}
+	e.preventDefault()
 }
  
 //show the descriptions on the page
 function showDetails() {
 	//rescale the input coordinates to the graph coordinates
-	var site = diagram.find(d3.mouse(this)[0]/scaleX, d3.mouse(this)[1]/scaleY);
+	var site = diagram.find((d3.mouse(this)[0] - offsetX)/scaleX, (d3.mouse(this)[1] - offsetY)/scaleY);
 	var detail = document.getElementById("details_"+site.id);
 	var legend = document.getElementById("legend");
 	var offset = detail.offsetTop - legend.offsetTop;
@@ -366,6 +434,7 @@ function getDetailsString(site) {
 	return details;
 }
 
+//discover all sites and build up a legend.
 function createLegend() {
 	var legend = document.getElementById("legend");
 	var legendText = "<ul>\n";

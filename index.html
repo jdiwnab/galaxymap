@@ -266,7 +266,6 @@ function assignFaction(index, faction, expantion, decrement) {
     //now, with a random chance, pick an adjacent cell and apply the faction if it doesn't have one
     for(var i = 0; i < cell.halfedges.length; i++) {
         var hEdge = cell.halfedges[i];
-        //log("exploring cell " +index+" edge "+hEdgeIndex);
         if(Math.random() < expantion) {
             var edge = graph.diagram.edges[hEdge];
             //find neighbor that is not the current cell
@@ -394,7 +393,6 @@ function redraw() {
 
 //draw a region
 function redrawPolygon(polygon) {
-    //console.log(polygon);
     polygon.attr("d", function(d) {
         return d ? "M" + d.map(function(i) {
                 return [i[0]*view.zoom + view.offsetX, i[1]*view.zoom + view.offsetY];
@@ -430,7 +428,6 @@ function redrawTextSite(site) {
 function handleMouseWheel(e) {
     var e = window.event || e;
     var delta = Math.max(-1, Math.min(1, (e.wheelDelta || -e.detail)));
-    //console.log("mouse wheel: "+ delta);
     view.zoom = view.zoom + (1 * delta /50);
     svg.style("background-size", view.zoom*100 + "%");
     redraw();
@@ -468,7 +465,6 @@ function handleTouchStart(event) {
     var touches = e.changedTouches;
     for(var i = 0; i<touches.length; i++) {
         state.ongoingTouches.push(copyTouch(touches[i]));
-        log("adding touch " + touches[i].identifier);
     }
 
     if(state.ongoingTouches.length == 2) {
@@ -492,7 +488,6 @@ function handleTouchEnd(event) {
         if(idx >= 0) {
             if(idx==0) showDetails.apply(this);
             state.ongoingTouches.splice(idx,1);
-            log("removed touch " + touches[i].identifier);
         }
     }
 

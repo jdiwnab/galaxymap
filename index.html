@@ -214,12 +214,14 @@ function assignFactions() {
     }
 }
 
-//Pick two aspects, making sure they don't conflict
+//Pick two aspects for a faction
 function generateFaction(color) {
     var aspects = generateAspects(getFactionAspects(), 2);
     return {color: color, aspects: aspects};
 }
 
+//Pick some number of aspects from a given list
+//make sure they don't conflict
 function generateAspects(list, count) {
     var aspects = [];
     while(aspects.length < count) {
@@ -244,6 +246,7 @@ function generateAspects(list, count) {
     return aspects;
 }
 
+//Randomly pick an aspect from a list
 function selectAspect(aspects) {
     return aspects[Math.floor(Math.random() * aspects.length)];
 }
@@ -514,6 +517,7 @@ function handleTouchMove(event) {
         var idx = ongoingTouchIndexById(touches[i].identifier);
         if(idx >= 0) {
             if(state.zooming) {
+                log("zoom");
                 var existingTouch = state.ongoingTouches[idx];
                 var otherTouch = state.ongoingTouches[!idx];
                 var currentTouch = touches[i];
@@ -523,6 +527,7 @@ function handleTouchMove(event) {
                 log("zooming, existing touch " + existingTouch.identifier + " moved, delta now " + delta);
             }
             if(state.dragging) {
+                log("drag");
                 var existingTouch = state.ongoingTouches[idx];
                 view.offsetX += touches[i].pageX - existingTouch.pageX;
                 view.offsetY += touches[i].pageY - existingTouch.pageY;

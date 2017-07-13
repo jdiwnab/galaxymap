@@ -517,17 +517,19 @@ function handleTouchMove(event) {
         var idx = ongoingTouchIndexById(touches[i].identifier);
         if(idx >= 0) {
             if(state.zooming) {
-                log("zoom");
-                var existingTouch = state.ongoingTouches[idx];
-                var otherTouch = state.ongoingTouches[!idx];
-                var currentTouch = touches[i];
-                var previousDistance = Math.sqrt((Math.pow(existingTouch.pageX - otherTouch.pageX, 2)+ Math.pow(existingTouch.pageY - otherTouch.pageY, 2)));
-                var currentDistance = Math.sqrt((Math.pow(currentTouch.pageX - otherTouch.pageX, 2) + Math.pow(currentTouch.pageY - otherTouch.pageY, 2)));
-                delta = delta * (currentDistance / previousDistance);
-                log("zooming, existing touch " + existingTouch.identifier + " moved, delta now " + delta);
+                try {
+                    var existingTouch = state.ongoingTouches[idx];
+                    var otherTouch = state.ongoingTouches[!idx];
+                    var currentTouch = touches[i];
+                    var previousDistance = Math.sqrt((Math.pow(existingTouch.pageX - otherTouch.pageX, 2)+ Math.pow(existingTouch.pageY - otherTouch.pageY, 2)));
+                    var currentDistance = Math.sqrt((Math.pow(currentTouch.pageX - otherTouch.pageX, 2) + Math.pow(currentTouch.pageY - otherTouch.pageY, 2)));
+                    delta = delta * (currentDistance / previousDistance);
+                    log("zooming, existing touch " + existingTouch.identifier + " moved, delta now " + delta);
+                } catch(err) {
+                    log(err.message);
+                }
             }
             if(state.dragging) {
-                log("drag");
                 var existingTouch = state.ongoingTouches[idx];
                 view.offsetX += touches[i].pageX - existingTouch.pageX;
                 view.offsetY += touches[i].pageY - existingTouch.pageY;

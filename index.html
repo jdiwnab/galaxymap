@@ -519,7 +519,8 @@ function handleTouchMove(event) {
             if(state.zooming) {
                 try {
                     var existingTouch = state.ongoingTouches[idx];
-                    var otherTouch = state.ongoingTouches[!idx];
+                    var otherIdx = (idx == 0 ? 1:0);
+                    var otherTouch = state.ongoingTouches[otherIdx];
                     var currentTouch = touches[i];
                     var previousDistance = Math.sqrt((Math.pow(existingTouch.pageX - otherTouch.pageX, 2)+ Math.pow(existingTouch.pageY - otherTouch.pageY, 2)));
                     var currentDistance = Math.sqrt((Math.pow(currentTouch.pageX - otherTouch.pageX, 2) + Math.pow(currentTouch.pageY - otherTouch.pageY, 2)));

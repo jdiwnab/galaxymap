@@ -490,8 +490,9 @@ function handleTouchEnd(event) {
     for(var i = 0; i<touches.length; i++) {
         var idx = ongoingTouchIndexById(touches[i].identifier);
         if(idx >= 0) {
+            if(idx==0) showDetails();
             state.ongoingTouches.splice(idx,1);
-             log("removed touch " + touches[i].identifier);
+            log("removed touch " + touches[i].identifier);
         }
     }
 
@@ -517,19 +518,14 @@ function handleTouchMove(event) {
         var idx = ongoingTouchIndexById(touches[i].identifier);
         if(idx >= 0) {
             if(state.zooming) {
-                try {
-                    var existingTouch = state.ongoingTouches[idx];
-                    var otherIdx = (idx == 0 ? 1:0);
-                    var otherTouch = state.ongoingTouches[otherIdx];
-                    var currentTouch = touches[i];
-                    log("existing idx: "+idx+", other idx: "+otherIdx+", current: "+i);
-                    var previousDistance = Math.sqrt((Math.pow(existingTouch.pageX - otherTouch.pageX, 2)+ Math.pow(existingTouch.pageY - otherTouch.pageY, 2)));
-                    var currentDistance = Math.sqrt((Math.pow(currentTouch.pageX - otherTouch.pageX, 2) + Math.pow(currentTouch.pageY - otherTouch.pageY, 2)));
-                    delta = delta * (currentDistance / previousDistance);
-                    log("zooming, existing touch " + existingTouch.identifier + " moved, delta now " + delta);
-                } catch(err) {
-                    //log(err.message);
-                }
+                var existingTouch = state.ongoingTouches[idx];
+                var otherIdx = (idx == 0 ? 1:0);
+                var otherTouch = state.ongoingTouches[otherIdx];
+                var currentTouch = touches[i];
+                var previousDistance = Math.sqrt((Math.pow(existingTouch.pageX - otherTouch.pageX, 2)+ Math.pow(existingTouch.pageY - otherTouch.pageY, 2)));
+                var currentDistance = Math.sqrt((Math.pow(currentTouch.pageX - otherTouch.pageX, 2) + Math.pow(currentTouch.pageY - otherTouch.pageY, 2)));
+                delta = delta * (currentDistance / previousDistance);
+                log("zooming, existing touch " + existingTouch.identifier + " moved, delta now " + delta);
             }
             if(state.dragging) {
                 var existingTouch = state.ongoingTouches[idx];

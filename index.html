@@ -485,12 +485,12 @@ function handleTouchStart(event) {
 
 function handleTouchEnd(event) {
     var e = window.event || event;
-    e.preventDefault();
+    //e.preventDefault();
     var touches = e.changedTouches;
     for(var i = 0; i<touches.length; i++) {
         var idx = ongoingTouchIndexById(touches[i].identifier);
         if(idx >= 0) {
-            if(idx==0) showDetails();
+            if(idx==0) showDetails.apply(this);
             state.ongoingTouches.splice(idx,1);
             log("removed touch " + touches[i].identifier);
         }
@@ -512,7 +512,6 @@ function handleTouchMove(event) {
     var e = window.event || event;
     var delta = 1;
     e.preventDefault();
-    log("touch move")
     var touches = e.changedTouches;
     for(var i = 0; i<touches.length; i++) {
         var idx = ongoingTouchIndexById(touches[i].identifier);
@@ -525,13 +524,11 @@ function handleTouchMove(event) {
                 var previousDistance = Math.sqrt((Math.pow(existingTouch.pageX - otherTouch.pageX, 2)+ Math.pow(existingTouch.pageY - otherTouch.pageY, 2)));
                 var currentDistance = Math.sqrt((Math.pow(currentTouch.pageX - otherTouch.pageX, 2) + Math.pow(currentTouch.pageY - otherTouch.pageY, 2)));
                 delta = delta * (currentDistance / previousDistance);
-                log("zooming, existing touch " + existingTouch.identifier + " moved, delta now " + delta);
             }
             if(state.dragging) {
                 var existingTouch = state.ongoingTouches[idx];
                 view.offsetX += touches[i].pageX - existingTouch.pageX;
                 view.offsetY += touches[i].pageY - existingTouch.pageY;
-                log("dragging, existing touch " + touches[i].identifier + " moved, offset now " + view.offsetX + ", " + view.offsetY);
             }
             state.ongoingTouches.splice(idx,1, copyTouch(touches[i]));
         }

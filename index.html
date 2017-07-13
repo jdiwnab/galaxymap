@@ -113,21 +113,45 @@
         <title>Galaxy Map Generator</title>
     <body>
         <svg width="960" height="640"></svg>
-        <div id="legend"></div>
         <div id="logger"></div>
+        <div id="legend"></div>
         <script src="https://d3js.org/d3.v4.min.js"></script>
 
         <script>
-
-var polygons, link, site, voronoi, sites, diagram;
-var xNormA, yNormA, xNormB, yNormB;
-var svg, viewWidth, viewHeight, width, height;
-var zoom, offsetX, offsetY, dragging;
+var graph  = {
+    polygons: null,
+    link: null,
+    site: null,
+    sites: null,
+    voronoi: null,
+    diagram: null,
+    width: null,
+    height: null
+}
+var distributions = {
+    xNormA: null,
+    yNormA: null,
+    xNormB: null,
+    yNormB: null
+}
+var view = {
+    width: null,
+    height: null,
+    offsetX: null,
+    offsetY: null,
+    zoom: null
+}
+var state = {
+    dragging: false,
+    ongoingTouches: [],
+    zooming: false
+}
+var svg
 
 //log messages to console and to the view
 function log(msg) {
     var logger = document.getElementById("logger");
-    logger.innerHTML = logger.innerHTML + "<br/>" + msg;
+    logger.innerHTML =  msg;
     console.log(msg);
 }
 
@@ -165,9 +189,9 @@ function gaussian(mean, stdev) {
 function pointGen() {
     var point;
     if(Math.random() < .5) {
-        point = [xNormA(), yNormA()]
+        point = [distributions.xNormA(), distributions.yNormA()]
     } else {
-        point = [xNormB(), yNormB()]
+        point = [distributions.xNormB(), distributions.yNormB()]
     }
     return point;
 }
@@ -180,8 +204,8 @@ function assignFactions() {
         var faction = generateFaction(color);
         var index = undefined;
         while(!index) {
-            index = Math.floor(Math.random() * diagram.cells.length);
-            var cell = diagram.cells[index];
+            index = Math.floor(Math.random() * graph.diagram.cells.length);
+            var cell = graph.diagram.cells[index];
             if (cell.faction) {
                 index = undefined;
             }
@@ -228,20 +252,20 @@ function selectAspect(aspects) {
 //expand with a chance of 'expantion' to any given adjacent cells
 //decrease rate of expantion by 'decrement'
 function assignFaction(index, faction, expantion, decrement) {
-    var cell = diagram.cells[index];
+    var cell = graph.diagram.cells[index];
     //randomly assign a faction, for now one of two
     if(cell.site.faction) {
         // 1/10th the change to claim an existing faction's cell
         if(Math.random() > expantion/50) return;
     }
     cell.site.faction = faction;
-    polygons._groups[0][index].setAttribute("class", faction.color);
+    graph.polygons._groups[0][index].setAttribute("class", faction.color);
     //now, with a random chance, pick an adjacent cell and apply the faction if it doesn't have one
     for(var i = 0; i < cell.halfedges.length; i++) {
         var hEdge = cell.halfedges[i];
         //log("exploring cell " +index+" edge "+hEdgeIndex);
         if(Math.random() < expantion) {
-            var edge = diagram.edges[hEdge];
+            var edge = graph.diagram.edges[hEdge];
             //find neighbor that is not the current cell
             var neighbor = edge.left;
             if (neighbor === cell.site || !neighbor){ 
@@ -257,8 +281,8 @@ function assignFaction(index, faction, expantion, decrement) {
 
 //for each cell, pick three random descriptions
 function assignDescriptions() {
-    for(var i = 0; i< diagram.cells.length; i++) {
-        var cell = diagram.cells[i];
+    for(var i = 0; i< graph.diagram.cells.length; i++) {
+        var cell = graph.diagram.cells[i];
         var index = i;
         var site = cell.site;
         //pick three aspects per site
@@ -272,7 +296,7 @@ function assignDescriptions() {
 
 //adjust points so that they are slightly further appart
 function relaxation(points) {
-    var voronoi = d3.voronoi().extent([[-1,-1], [width+1, height+1]]);
+    var voronoi = d3.voronoi().extent([[-1,-1], [graph.width+1, graph.height+1]]);
     var polygons = voronoi(points).polygons();
     var centroids = polygons.map(d3.polygonCentroid);
     return centroids;
@@ -281,57 +305,57 @@ function relaxation(points) {
 function init() {
     //view variables
     svg         = d3.select("svg");
-    viewWidth    = svg.attr("width");
-    viewHeight    = svg.attr("height");
-    width        = 960;
-    height        = 640;
-    zoom        = viewWidth/width;
-    offsetX        = 0;
-    offsetY        = 0;
-    voronoiRadius = width/10;
+    view.width    = svg.attr("width");
+    view.height    = svg.attr("height");
+    graph.width        = 960;
+    graph.height        = 640;
+    view.zoom        = view.width/graph.width;
+    view.offsetX        = 0;
+    view.offsetY        = 0;
+    voronoiRadius = graph.width/10;
 
     //Two distrubutions make it look interesting
-    xNormA = gaussian(width/2 + width/8, width/10);
-    yNormA = gaussian(height/2 - height/7, height/10);
-    xNormB = gaussian(width/2 - width/8, width/10);
-    yNormB = gaussian(height/2 + height/7, height/10);
+    distributions.xNormA = gaussian(graph.width/2 + graph.width/8, graph.width/10);
+    distributions.yNormA = gaussian(graph.height/2 - graph.height/7, graph.height/10);
+    distributions.xNormB = gaussian(graph.width/2 - graph.width/8, graph.width/10);
+    distributions.yNormB = gaussian(graph.height/2 + graph.height/7, graph.height/10);
 
     //main diagram references
-    sites = d3.range(200).map(pointGen);
-    sites = relaxation(sites);
-    sites.map( (site, index) => {site.id=index; return site;} );
-    voronoi = d3.voronoi().extent([[-1,-1], [width+1, height+1]]);
-    diagram = voronoi(sites);
+    graph.sites = d3.range(200).map(pointGen);
+    graph.sites = relaxation(graph.sites);
+    graph.sites.map( (site, index) => {site.id=index; return site;} );
+    graph.voronoi = d3.voronoi().extent([[-1,-1], [graph.width+1, graph.height+1]]);
+    graph.diagram = graph.voronoi(graph.sites);
 
     //init the view
-    link = svg.append("g")
+    graph.link = svg.append("g")
         .attr("class", "links")
         .selectAll("line")
-        .data(voronoi.links(sites))
+        .data(graph.voronoi.links(graph.sites))
         .enter()
         .append("line")
         .call(redrawLink);
     /*site = svg.append("g")
         .attr("class", "sites")
         .selectAll("circle")
-        .data(sites)
+        .data(graph.sites)
         .enter()
         .append("circle")
         .attr("r", 2.5)
         .call(redrawSite);*/
-    site = svg.append("g")
+    graph.site = svg.append("g")
         .attr("class", "sites")
         .selectAll("text")
-        .data(sites)
+        .data(graph.sites)
         .enter()
         .append("text")
         .attr("font-size", 7)
         .attr("font-family", "sans-serif")
         .call(redrawTextSite);
-    polygons = svg.append("g")
+    graph.polygons = svg.append("g")
         .attr("class", "polygons")
         .selectAll("path")
-        .data(voronoi.polygons(sites))
+        .data(graph.voronoi.polygons(graph.sites))
         .enter()
         .append("path")
         .call(redrawPolygon);
@@ -340,17 +364,22 @@ function init() {
 
     createLegend();
 
-    dragging=false;
+    state.dragging=false;
 
     svg.on("mousewheel", handleMouseWheel)
         .on("mousedown", handleDragStart)
         .on("mouseup", handleDragEnd)
         .on("mousemove", handleDrag)
-        .on("mouseleave", handleDragEnd);
+        .on("mouseleave", handleDragEnd)
+        .on("touchstart", handleTouchStart)
+        .on("touchend", handleTouchEnd)
+        .on("touchcancel", handleTouchEnd)
+        .on("touchmove", handleTouchMove);
 }
 
+//refresh view, such as on pan or zoom
 function redraw() {
-    var fontsize = zoom * 7
+    var fontsize = view.zoom * 7
     svg.selectAll("line")
         .call(redrawLink);
     svg.selectAll("text")
@@ -358,7 +387,6 @@ function redraw() {
         .call(redrawTextSite);
     svg.selectAll("path")
         .call(redrawPolygon);
-
 }
 
 //draw a region
@@ -366,7 +394,7 @@ function redrawPolygon(polygon) {
     //console.log(polygon);
     polygon.attr("d", function(d) {
         return d ? "M" + d.map(function(i) {
-                return [i[0]*zoom + offsetX, i[1]*zoom + offsetY];
+                return [i[0]*view.zoom + view.offsetX, i[1]*view.zoom + view.offsetY];
             }).join("L") + "Z" : null;
         })
         .on("mouseover", function() { this.setAttribute("style", "fill-opacity: .5"); })
@@ -376,62 +404,159 @@ function redrawPolygon(polygon) {
 //draw a star lane
 function redrawLink(link) {
     link
-        .attr("x1", function(d) { return d.source[0]*zoom + offsetX; })
-        .attr("y1", function(d) { return d.source[1]*zoom + offsetY; })
-        .attr("x2", function(d) { return d.target[0]*zoom + offsetX; })
-        .attr("y2", function(d) { return d.target[1]*zoom + offsetY; });
+        .attr("x1", function(d) { return d.source[0]*view.zoom + view.offsetX; })
+        .attr("y1", function(d) { return d.source[1]*view.zoom + view.offsetY; })
+        .attr("x2", function(d) { return d.target[0]*view.zoom + view.offsetX; })
+        .attr("y2", function(d) { return d.target[1]*view.zoom + view.offsetY; });
 }
 //draw a star/planet
 function redrawSite(site) {
     site
-        .attr("cx", function(d) { return d[0]*zoom + offsetX; })
-        .attr("cy", function(d) { return d[1]*zoom + offsetY; });
+        .attr("cx", function(d) { return d[0]*view.zoom + view.offsetX; })
+        .attr("cy", function(d) { return d[1]*view.zoom + view.offsetY; });
 }
-
+//draw a star/planet, but as a number
 function redrawTextSite(site) {
     site
-        .attr("x", function(d) { return d[0]*zoom -4 + offsetX; })
-        .attr("y", function(d) { return d[1]*zoom +3 + offsetY; })
+        .attr("x", function(d) { return d[0]*view.zoom -4 + view.offsetX; })
+        .attr("y", function(d) { return d[1]*view.zoom +3 + view.offsetY; })
         .text(function(d) {return d.id+1;});
 }
 
+//zoom in and out
 function handleMouseWheel(e) {
     var e = window.event || e;
     var delta = Math.max(-1, Math.min(1, (e.wheelDelta || -e.detail)));
     //console.log("mouse wheel: "+ delta);
-    zoom = zoom + (1 * delta /50);
-    svg.style("background-size", zoom*100 + "%");
+    view.zoom = view.zoom + (1 * delta /50);
+    svg.style("background-size", view.zoom*100 + "%");
     redraw();
     e.preventDefault();
     return true;
 }
 
+//maybe about to start panning
 function handleDragStart(event) {
     var e = window.event || event;
-    dragging=true;
+    state.dragging=true;
     e.preventDefault();
 }
-
+//stop panning
 function handleDragEnd(event) {
     var e = window.event || event;
-    dragging=false;
+    state.dragging=false;
     e.preventDefault();
 }
+//do panning if already dragging
 function handleDrag(event) {
     var e = window.event || event;
-    if(dragging) {
-        offsetX += e.movementX;
-        offsetY += e.movementY;
-        svg.style("background-position", offsetX+" "+offsetY);
+    if(state.dragging) {
+        view.offsetX += e.movementX;
+        view.offsetY += e.movementY;
+        svg.style("background-position", view.offsetX+" "+view.offsetY);
         redraw();
     }
     e.preventDefault()
+}
+
+function handleTouchStart(event) {
+    var e = window.event || event;
+    e.preventDefault();
+    var touches = e.changedTouches;
+    for(var i = 0; i<touches.length; i++) {
+        state.ongoingTouches.push(copyTouch(touches[i]));
+        log("adding touch " + touches[i].identifier);
+    }
+
+    if(state.ongoingTouches.length == 2) {
+        state.zooming = true;
+        state.dragging = false;
+    } else if(state.ongoingTouches.length == 1) {
+        state.zooming = false;
+        state.dragging = true;
+    } else {
+        state.zooming = false;
+        state.dragging = false;
+    }
+}
+
+function handleTouchEnd(event) {
+    var e = window.event || event;
+    e.preventDefault();
+    var touches = e.changedTouches;
+    for(var i = 0; i<touches.length; i++) {
+        var idx = ongoingTouchIndexById(touches[i].identifier);
+        if(idx >= 0) {
+            state.ongoingTouches.splice(idx,1);
+             log("removed touch " + touches[i].identifier);
+        }
+    }
+
+    if(state.ongoingTouches.length == 2) {
+        state.zooming = true;
+        state.dragging = false;
+    } else if(state.ongoingTouches.length == 1) {
+        state.zooming = false;
+        state.dragging = true;
+    } else {
+        state.zooming = false;
+        state.dragging = false;
+   }
+}
+
+function handleTouchMove(event) {
+    var e = window.event || event;
+    var delta = 1;
+    e.preventDefault();
+    log("touch move")
+    var touches = e.changedTouches;
+    for(var i = 0; i<touches.length; i++) {
+        var idx = ongoingTouchIndexById(touches[i].identifier);
+        if(idx >= 0) {
+            if(state.zooming) {
+                var existingTouch = state.ongoingTouches[idx];
+                var otherTouch = state.ongoingTouches[!idx];
+                var currentTouch = touches[i];
+                var previousDistance = Math.sqrt((Math.pow(existingTouch.pageX - otherTouch.pageX, 2)+ Math.pow(existingTouch.pageY - otherTouch.pageY, 2)));
+                var currentDistance = Math.sqrt((Math.pow(currentTouch.pageX - otherTouch.pageX, 2) + Math.pow(currentTouch.pageY - otherTouch.pageY, 2)));
+                delta = delta * (currentDistance / previousDistance);
+                log("zooming, existing touch " + existingTouch.identifier + " moved, delta now " + delta);
+            }
+            if(state.dragging) {
+                var existingTouch = state.ongoingTouches[idx];
+                view.offsetX += touches[i].pageX - existingTouch.pageX;
+                view.offsetY += touches[i].pageY - existingTouch.pageY;
+                log("dragging, existing touch " + touches[i].identifier + " moved, offset now " + view.offsetX + ", " + view.offsetY);
+            }
+            state.ongoingTouches.splice(idx,1, copyTouch(touches[i]));
+        }
+    }
+    view.zoom = view.zoom * delta;
+    svg.style("background-size", view.zoom*100 + "%");
+    svg.style("background-position", view.offsetX+" "+view.offsetY);
+    redraw();
+    e.preventDefault();
+}
+
+function copyTouch(touch) {
+    return { identifier: touch.identifier, pageX: touch.pageX, pageY: touch.pageY };
+}
+
+function ongoingTouchIndexById(idToFind) {
+    for (var i = 0; i < state.ongoingTouches.length; i++) {
+        var id = state.ongoingTouches[i].identifier;
+    
+        if (id == idToFind) {
+            return i;
+        }
+    }
+    return -1;    // not found
 }
  
 //show the descriptions on the page
 function showDetails() {
     //rescale the input coordinates to the graph coordinates
-    var site = diagram.find((d3.mouse(this)[0] - offsetX)/zoom, (d3.mouse(this)[1] - offsetY)/zoom);
+    var site = graph.diagram.find((d3.mouse(this)[0] - view.offsetX)/view.zoom, (d3.mouse(this)[1] - view.offsetY)/view.zoom);
     var detail = document.getElementById("details_"+site.id);
     var legend = document.getElementById("legend");
     var offset = detail.offsetTop - legend.offsetTop;
@@ -444,6 +569,7 @@ function showDetails() {
     legend.scrollTop = offset;
 }
 
+//Build div for legend
 function getDetailsBlock(site) {
     var details = document.createElement('div');
     details.id = "details_"+(site.id);
@@ -473,27 +599,19 @@ function getDetailsBlock(site) {
 
     return details;
 }
-function getDetailsString(site) {
-    var planet = "Planet: "+site.planet.map(aspect=> aspect.name).join(", ");
-    var race = "<br/>Race: "+site.race.map(aspect=> aspect.name).join(", ");
-    var details = planet + race;
-    if(site.faction) {
-        details += "<br/>Faction: " + site.faction.aspects.map(aspect => aspect.name).join(", ");
-    }
-    return details;
-}
 
 //discover all sites and build up a legend.
 function createLegend() {
     var legend = document.getElementById("legend");
     var legendText = "<ul>\n";
-    for(var i=0; i<diagram.cells.length; i++) {
-        var site = diagram.cells[i].site;
+    for(var i=0; i<graph.diagram.cells.length; i++) {
+        var site = graph.diagram.cells[i].site;
         legend.append(getDetailsBlock(site));
     }
     //legend.innerHTML = legendText;
 }
 
+//List of aspects for a faction
 function getFactionAspects() {
     return [
     {name:'industrialized', excludes:['primitive']},
@@ -512,6 +630,7 @@ function getFactionAspects() {
     ];
 }
 
+//List of aspects for a plannet
 function getPlanetAspects() {
     return [
     {name:'high gravity', excludes:['normal gravity', 'low gravity']},
@@ -536,6 +655,7 @@ function getPlanetAspects() {
     ];
 }
 
+//List of aspects for an alien race
 function getRaceAspects() {
     return [
     {name:'industrialized', excludes:['agrarian']},

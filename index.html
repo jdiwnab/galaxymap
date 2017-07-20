@@ -2,18 +2,25 @@
 <html>
     <head>
         <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
         <style>
             html {
                 font-family: sans-serif;
+            }
+
+            .svgwrapper {
+                max-width: 960px;
             }
 
             svg {
                 background-image: url("m31.jpg");
                 background-repeat: no-repeat;
                 background-size: 100%;
-                display: inline-block;
-            }
+                display: block;
+                width: 100%;
+                height: auto;
 
+            }
             .links {
               stroke: #000;
               stroke-opacity: 0.5;
@@ -89,12 +96,14 @@
             .details {
                 display: inline-block;
                 position: relative;
-                border: 1px solid black;
+                border: 1px solid darkgray;
                 border-radius: 5px;
                 margin: 5px;
                 padding: 2px;
                 vertical-align: top;
                 width: 20%;
+                min-width: 200px;
+                box-shadow: 5px 5px 5px lightgray;
             }
             .details .details_header {
                 font-weight: bold;
@@ -112,7 +121,9 @@
         </style>
         <title>Galaxy Map Generator</title>
     <body>
-        <svg width="960" height="640"></svg>
+        <div class="svgwrapper" id="view">
+            <svg width="960" height="640"></svg>
+        </div>
         <div id="logger"></div>
         <div id="legend"></div>
         <script src="https://d3js.org/d3.v4.min.js"></script>
@@ -139,7 +150,8 @@ var view = {
     height: null,
     offsetX: null,
     offsetY: null,
-    zoom: null
+    zoom: null,
+    bgzoom: null
 }
 var state = {
     dragging: false,
@@ -306,14 +318,15 @@ function relaxation(points) {
 
 function init() {
     //view variables
-    svg         = d3.select("svg");
-    view.width    = svg.attr("width");
-    view.height    = svg.attr("height");
-    graph.width        = 960;
-    graph.height        = 640;
-    view.zoom        = view.width/graph.width;
-    view.offsetX        = 0;
-    view.offsetY        = 0;
+    svg           = d3.select("svg");
+    view.width    = document.getElementById("view").getBoundingClientRect().width
+    view.height   = document.getElementById("view").getBoundingClientRect().height
+    graph.width   = 960;
+    graph.height  = 640;
+    view.zoom     = view.width/graph.width;
+    view.bgzoom   = 1/view.zoom;
+    view.offsetX  = 0;
+    view.offsetY  = 0;
     voronoiRadius = graph.width/10;
 
     //Two distrubutions make it look interesting
@@ -378,6 +391,16 @@ function init() {
         .on("touchcancel", handleTouchEnd)
         .on("touchmove", handleTouchMove);
 }
+function windowResize() {
+    view.width    = document.getElementById("view").getBoundingClientRect().width
+    view.height   = document.getElementById("view").getBoundingClientRect().height
+    view.zoom     = view.width/graph.width;
+    view.bgzoom   = 1/view.zoom;
+    view.offsetX  = 0;
+    view.offsetY  = 0;
+
+    redraw();
+}
 
 //refresh view, such as on pan or zoom
 function redraw() {
@@ -389,6 +412,8 @@ function redraw() {
         .call(redrawTextSite);
     svg.selectAll("path")
         .call(redrawPolygon);
+    svg.style("background-size", (view.bgzoom * view.zoom)*100 + "%");
+    svg.style("background-position", view.offsetX+" "+view.offsetY);
 }
 
 //draw a region
@@ -453,7 +478,6 @@ function handleDrag(event) {
     if(state.dragging) {
         view.offsetX += e.movementX;
         view.offsetY += e.movementY;
-        svg.style("background-position", view.offsetX+" "+view.offsetY);
         redraw();
     }
     e.preventDefault()
@@ -529,8 +553,6 @@ function handleTouchMove(event) {
         }
     }
     view.zoom = view.zoom * delta;
-    svg.style("background-size", view.zoom*100 + "%");
-    svg.style("background-position", view.offsetX+" "+view.offsetY);
     redraw();
     e.preventDefault();
 }
@@ -686,7 +708,19 @@ function getRaceAspects() {
     ];
 }
 
-window.onload = function() { init(); };
+var addEvent = function(object, type, callback) {
+    if(object == null || typeof(object) == 'undefined') return;
+    if(object.addEventListener) {
+        object.addEventListener(type, callback, false);
+    } else if (object.attachEvent) {
+        object.attachEvent("on" + type, callback);
+    } else {
+        object["on"+type] = callback;
+    }
+}
+
+addEvent(window, "resize", windowResize);
+addEvent(window, "load", init);
 
         </script>
     </body>

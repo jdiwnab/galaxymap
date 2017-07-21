@@ -18,8 +18,6 @@
                 background-size: 100%;
                 display: block;
                 width: 100%;
-                height: auto;
-
             }
             .links {
               stroke: #000;
@@ -319,15 +317,10 @@ function relaxation(points) {
 function init() {
     //view variables
     svg           = d3.select("svg");
-    view.width    = document.getElementById("view").getBoundingClientRect().width
-    view.height   = document.getElementById("view").getBoundingClientRect().height
     graph.width   = 960;
     graph.height  = 640;
-    view.zoom     = view.width/graph.width;
-    view.bgzoom   = 1/view.zoom;
-    view.offsetX  = 0;
-    view.offsetY  = 0;
     voronoiRadius = graph.width/10;
+    windowSizing();
 
     //Two distrubutions make it look interesting
     distributions.xNormA = gaussian(graph.width/2 + graph.width/8, graph.width/10);
@@ -380,6 +373,7 @@ function init() {
     createLegend();
 
     state.dragging=false;
+    windowSizing();
 
     svg.on("mousewheel", handleMouseWheel)
         .on("mousedown", handleDragStart)
@@ -391,14 +385,18 @@ function init() {
         .on("touchcancel", handleTouchEnd)
         .on("touchmove", handleTouchMove);
 }
-function windowResize() {
+function windowSizing() {
     view.width    = document.getElementById("view").getBoundingClientRect().width
-    view.height   = document.getElementById("view").getBoundingClientRect().height
+    view.height   = (2.0/3.0) * view.width;
+    svg.attr('height', view.height);
+    svg.attr('width', view.width);
     view.zoom     = view.width/graph.width;
     view.bgzoom   = 1/view.zoom;
     view.offsetX  = 0;
     view.offsetY  = 0;
-
+}
+function windowResize() {
+    windowSizing();
     redraw();
 }
 
@@ -444,6 +442,7 @@ function redrawSite(site) {
 //draw a star/planet, but as a number
 function redrawTextSite(site) {
     site
+        .attr("font-size", view.zoom*7)
         .attr("x", function(d) { return d[0]*view.zoom -4 + view.offsetX; })
         .attr("y", function(d) { return d[1]*view.zoom +3 + view.offsetY; })
         .text(function(d) {return d.id+1;});
